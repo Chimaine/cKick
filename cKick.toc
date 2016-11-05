@@ -1,0 +1,12 @@
+## Interface: 70100
+
+## Title: |cff7696bcc|rKick
+## Notes: Automatically organize your kick rotation
+
+## Author: Chimaine
+## Version: 1.1.0
+## SavedVariables: cKick_Settings
+## OptionalDeps: LibStub, CallbackHandler-1.0, LibSharedMedia-3.0
+
+embeds.xml
+cKick.xml
