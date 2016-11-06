@@ -17,7 +17,7 @@ local events = CreateFrame( "Frame", ADDON_NAME .. "_EventReceiver" );
 events:RegisterEvent( "ADDON_LOADED" )
 events:SetScript( "OnEvent", function( self, event, ... )
 	internal[event]( internal, ... )
-end)
+end )
 
 -- ----------------------------------------------------
 
@@ -26,7 +26,8 @@ LSM:Register( "statusbar", "darkborder", "Interface\\Addons\\cKick\\media\\darkb
 
 -- ----------------------------------------------------
 
-local bars = {};
+internal.Players = {}
+internal.Bars = {}
 
 -- ----------------------------------------------------
 -- Event Handler
@@ -39,7 +40,13 @@ function internal:OnSlashCmd( cmd )
 		if ( arg2 == "set" ) then
 			self:SetTarget( "target" )
 		end
-	end	
+	elseif ( arg1 == "player" ) then
+		if ( arg2 == "add" ) then
+			self:AddPlayer( arg3 )
+		elseif ( arg2 == "remove" ) then
+			self:RemovePlayer( arg3 )
+		end
+	end
 end
 
 function internal:ADDON_LOADED( arg )
@@ -64,34 +71,64 @@ function internal:PLAYER_LOGIN()
 	
 	--self.Anchor:Hide()
 	
+	if ( not RegisterAddonMessagePrefix( ADDON_NAME ) ) then
+		self:Log( "ERROR", "Unable to register AddonMessagePrefix, sync unavailable!" ) 
+	end
+
+	events:RegisterEvent( "CHAT_MSG_ADDON" )
+
 	--self:RAID_ROSTER_UPDATE()
 	--events:RegisterEvent("CHAT_MSG_ADDON")
 	--events:RegisterEvent("RAID_ROSTER_UPDATE")
 	events:RegisterEvent( "COMBAT_LOG_EVENT_UNFILTERED" )
 	
-	bars.Silenced:Start( 10, false )
+	self.Bars.Silenced.Start( 10, false )
+	self:AddPlayer( "player" )
+	self:AddPlayer( "player" )
+	self:AddPlayer( "player" )
+	self:AddPlayer( "player" )
+	self:AddPlayer( "player" )
 		
 	events:UnregisterEvent( "PLAYER_LOGIN" )
 end
 
 function internal:COMBAT_LOG_EVENT_UNFILTERED( ... )
-	local event = select( 2, ... );
+	local event = select( 2, ... )
 	if ( event == "SPELL_CAST_SUCCESS" ) then 
-		self:SPELL_CAST_SUCCESS( ... ) end
-	if ( event == "SPELL_INTERRUPT" ) then 
-		self:SPELL_INTERRUPT( ... ) end
+		self:SPELL_CAST_SUCCESS( ... )
+	elseif ( event == "SPELL_INTERRUPT" ) then 
+		self:SPELL_INTERRUPT( ... ) 
+	end
 end
 
 function internal:SPELL_CAST_SUCCESS( timestamp, event, hideCaster, 
 									  sourceGUID, sourceName, sourceFlags, sourceRaidFlags, 
 									  destGUID, destName, destFlags, destRaidFlags, 
-									  spellID, spellName, spellSchool )
-	self:Log( "DEBUG", sourceGUID .. " casted " .. spellID .. ":" .. spellName )
-	
+									  spellID, spellName, spellSchool )	
 	if ( bit.band( sourceFlags, COMBATLOG_OBJECT_AFFILIATION_OUTSIDER ) > 0 ) then
 		return end
 	
+	local spellInfo = self.SpellDB[spellID];
+	if ( not spellInfo ) then
+		return end
+
+	self:Log( "DEBUG", sourceName .. " casted " .. spellID .. ":" .. spellName )
+
 	
+	for i, v in ipairs( self.Players ) do
+		if ( v.GUID == sourceGUID ) then
+			v.Bar.Start( spellInfo["DefaultCooldown"], true )
+		end
+	end
+
+	--[[
+	local playerID = self:GetPlayerID( sourceGUID )
+	if ( not playerID ) then
+		return end
+	
+	local bar = self.Players[playerID].Bar
+	bar.Start( spellInfo["DefaultCooldown"], true )
+	]]
 end
 
 function internal:SPELL_INTERRUPT( timestamp, event, hideCaster, 
@@ -114,66 +151,124 @@ function internal:SPELL_INTERRUPT( timestamp, event, hideCaster,
 	if ( self.Target and ( destGUID ~= self.Target.GUID ) ) then
 		return end
 	
-	bars.Silenced:Start( spellInfo.CounterDuration, false )
+	self.Bars.Silenced.Start( spellInfo.CounterDuration, false )
+end
+
+function internal:CHAT_MSG_ADDON( prefix, message, channel, sender )
+	if ( prefix ~= ADDON_NAME ) then
+		return end
+
+	self:Log( "DEBUG", "AddonMessageReceived from " .. sender .. " via " .. channel )
+end
+
+-- ----------------------------------------------------
+-- Rotation management
+
+function internal:FindBestPlayerOrder()
+	
 end
 
 -- ----------------------------------------------------
 -- Player management
 
-internal.Players = {
-	Count = 0,
-}
+function internal:GetPlayerID( guid )
+	for i, v in ipairs( self.Players ) do
+		if ( v.GUID == guid ) then return i end
+	end
+end
 
-function internal:AddPlayer( unitID )
+function internal:AddPlayer( unitID )	
 	local guid = UnitGUID( unitID )
-	local className, classID, raceName, raceID, gender, name, realm = GetPlayerInfoByGUID( guid )
+	if ( not guid )	then
+		return end
 	
-	self.Players[guid] = {
+	--local id = self:GetPlayerID( guid )
+	--if ( id ) then
+	--	return self:Log( "ERROR", "Connot add player twice" ) end
+	
+	local _, classID, _, _, _, name, realm = GetPlayerInfoByGUID( guid )
+
+	if ( realm and ( string.len( realm ) > 0 ) ) then
+		name = name .. "-" .. realm
+	end
+
+	self:Log( "DEBUG", "Adding Player to rotation" )
+
+	id = #self.Players + 1
+	
+	local bar = self:GetBar( id )
+	bar.SetEnabled( true )
+	bar.SetLabel( name )
+
+	table.insert( self.Players, {
+		["GUID"] = guid,
 		["Name"] = name,
-		["Realm"] = realm,
 		["Class"] = classID,
-		["Race"] = raceID,
-		["Cooldown"] = 0,
-	}
-	self.Players.Count = self.Players.Count + 1;
+		["Bar"] = bar
+	} )
+	
+	return id
 end
 
 function internal:RemovePlayer( unitID )
 	local guid = UnitGUID( unitID )
-	self.Players[guid] = nil
+	if ( not guid )	then
+		return end
+
+	self:Log( "DEBUG", "Removing Player from rotation" )
+
+	local id = self:GetPlayerID( guid )
+	if ( not id ) then
+		return end
+
+	local reassign = ( id ~= #self.Players )
+	local playerInfo = table.remove( self.Players, id )
+
+	if ( reassign ) then
+		self:ReassignBars()
+	else
+		playerInfo.Bar.SetEnabled( false )
+	end
+end
+
+function internal:ReassignBars()
+	for i, v in ipairs( self.Bars ) do
+		v.SetEnabled( false )
+	end
+	for i, v in ipairs( self.Players ) do
+		v.Bar = self:GetBar( i )
+		v.Bar.SetEnabled( true )
+	end 
 end
 
 -- ----------------------------------------------------
 -- Target management
 
-internal.Target = nil;
-
 function internal:SetTarget( unitID )
-	local guid, name = UnitGUID( unitID ), UnitName( unitID )
-	
-	self:Log( "DEBUG", "Adding target: " .. unitID )
-	
-	self.Target = {
-		["Name"] = name,
-		["GUID"] = guid,
-		["Rotation"] = {},
-	}
+	if ( unitID == "none" ) then
+		internal.Target = nil
+	else
+		local guid, name = UnitGUID( unitID ), UnitName( unitID )
+		
+		self:Log( "DEBUG", "Adding target: " .. unitID )
+		
+		self.Target = {
+			["GUID"] = guid,
+			["Name"] = name,
+		}
+	end
 end
 
 -- ----------------------------------------------------
 -- Layout
 
-
 function internal:SetupAnchor()
-	-- Anchor
-	local anchor = CreateFrame( "Frame", "cKick_Anchor", UIParent )
-	
+	local anchor = CreateFrame( "Frame", "cKick_Anchor", UIParent )	
 	anchor:SetWidth( 200 )
-	anchor:SetHeight( 18 )
-	
+	anchor:SetHeight( 18 )	
 	anchor:SetScale( 1 )
 	anchor:SetAlpha( 1 )
-		
+
 	anchor:SetMovable( 1 )
 	anchor:EnableMouse( 1 )
 	anchor:SetUserPlaced( 0 )
@@ -199,23 +294,44 @@ function internal:SetupAnchor()
 	label:SetFont( LSM:Fetch( "font", "Friz Quadrata TT" ), 11, select( 3, label:GetFont() ) )
 	label:SetText( ADDON_NAME )
 	anchor.Label = label
-	
-	-- Buttons
-	
+		
 	self.Anchor = anchor
 end
 
 function internal:CreateSilenceBar()
-	local bar = self:CreateBar( 200, 18 )
-	bar:SetParent( self.Anchor )
-	bar:SetPoint( "TOP", self.Anchor, "BOTTOM" )
-	bar:SetLabel( "Silence" )
-	bar:SetTextStyle( LSM:Fetch( "font", "Friz Quadrata TT" ), 11 )
-	bar:SetColor( .31, .41, .53 )
-	bar:SetMinMaxValues( 0, 1 )
-	bar:SetValue( 0 )
+	local bar = self.CreateBar( 200, 18 )
+	bar.SetParent( self.Anchor )
+	bar.SetPoint( "TOP", self.Anchor, "BOTTOM", 0, 0 )
+	bar.SetTextStyle( LSM:Fetch( "font", "Friz Quadrata TT" ), 11 )
+	bar.SetColor( .31, .41, .53 )
+
+	bar.SetMinMaxValues( 0, 1 )
+	bar.SetValue( 1 )
+
+	bar.SetLabel( "Silence" )
 	
-	bars.Silenced = bar;
+	self.Bars.Silenced = bar;
+end
+
+function internal:GetBar( id )
+	if ( self.Bars[id] ) then
+		return self.Bars[id] end
+
+	local space = ( ( 18 + 1 ) * ( id ) ) + 3
+
+	self:Log("DEBUG", "Spacing: " .. space )
+
+	local bar = self.CreateBar( 200, 18 )
+	bar.SetParent( self.Anchor )
+	bar.SetPoint( "TOP", self.Anchor, "BOTTOM", 0, -space )
+	bar.SetTextStyle( LSM:Fetch( "font", "Friz Quadrata TT" ), 11 )
+	bar.SetColor( .31, .41, .53 )
+	
+	bar.SetMinMaxValues( 0, 1 )
+	bar.SetValue( 1 )
+
+	self.Bars[id] = bar
+	return bar
 end
 
 _G[ADDON_NAME] = internal

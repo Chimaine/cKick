@@ -1,190 +1,208 @@
 -- cKick Bar Module by Chimaine
--- Simple bar module, ripped and modified from LibCandyBar-3.0
+-- Simple bar module, inspired by LibCandyBar-3.0
 
 local ADDON_NAME, internal = ...
 
 -- ----------------------------------------------------
 
+local nextBarID = 1
 local LSM = LibStub( "LibSharedMedia-3.0" )
 
 -- ----------------------------------------------------
-
--- Time formatting
-local tformat1 = "%d:%02d"
-local tformat2 = "%1.1f"
-local tformat3 = "%.0f"
 
 local function SecondsToTimeDetail( t )
 	if ( t >= 60 ) then -- 1 minute to 1 hour
 		local m = floor( t / 60 )
 		local s = t - ( m * 60 )
-		return tformat1, m, s
+		return "%d:%02d", m, s
 	elseif ( t < 10 ) then -- 0 to 10 seconds
-		return tformat2, t
+		return "%1.1f", t
 	else -- 10 seconds to one minute
-		return tformat3, floor( t + .5 )
+		return "%.0f", floor( t + .5 )
 	end
 end
 
-local nextBarID = 1
+function internal.CreateBar( width, height )
+	local instance = {}
+		
+	local _id = nextBarID
+	local _enabled = true
+	local _duration = 0
+	local _remaining = 0
+	local _expires = 0
+	local _isRunning = false
+	local _hideOnStop = false
 
-function internal:CreateBar( width, height )
-	local bar = CreateFrame( "Frame", nil, UIParent )
-	
-	bar:SetWidth( width )
-	bar:SetHeight( height )
-	
-	bar.ID = nextBarID
 	nextBarID = nextBarID + 1
-	
-	bar.duration = 0
-	bar.remaining = 0
-	bar.exp = 0
-	bar.isRunning = false
-	bar.hideOnStop = false
-	
-	bar:SetScale(1)
-	bar:SetAlpha(1)
 
-	local statusbar = CreateFrame( "StatusBar", nil, bar )
-	statusbar:SetAllPoints()
-	statusbar:SetStatusBarTexture( LSM:Fetch( "statusbar", "darkborder" ) )
-	--bar.StatusBar = statusbar
+	local _bar = CreateFrame( "Frame", "cKick_Bar_" .. _id, UIParent )	
+	_bar:SetWidth( width )
+	_bar:SetHeight( height )
+	_bar:SetScale( 1 )
+	_bar:SetAlpha( 1 )
+
+	local _statusbar = CreateFrame( "StatusBar", nil, _bar )
+	_statusbar:SetAllPoints()
+	_statusbar:SetStatusBarTexture( LSM:Fetch( "statusbar", "darkborder" ) )
 	
-	local bg = statusbar:CreateTexture( nil, "BACKGROUND" )
-	bg:SetAllPoints()
-	bg:SetTexture( LSM:Fetch( "statusbar", "darkborder" ) )
-	bg:SetVertexColor( 0.5, 0.5, 0.5, 0.5 )
-	--bar.Background = bg
+	local _bg = _statusbar:CreateTexture( nil, "BACKGROUND" )
+	_bg:SetAllPoints()
+	_bg:SetTexture( LSM:Fetch( "statusbar", "darkborder" ) )
+	_bg:SetVertexColor( 0.5, 0.5, 0.5, 0.5 )
 	
-	local timer = statusbar:CreateFontString( nil, "ARTWORK", "GameFontHighlightSmallOutline" )
-	timer:SetPoint( "RIGHT", statusbar, -2, 0 )
-	--bar.Timer = timer
+	local _timer = _statusbar:CreateFontString( nil, "ARTWORK", "GameFontHighlightSmallOutline" )
+	_timer:SetPoint( "RIGHT", _statusbar, -2, 0 )
 	
-	local label = statusbar:CreateFontString( nil, "ARTWORK", "GameFontHighlightSmallOutline" )
-	label:SetPoint( "LEFT", statusbar, 2, 0 )
-	label:SetPoint( "RIGHT", statusbar, -2, 0 )
-	label:SetTextColor( 1,1,1,1 )
-	label:SetJustifyH( "CENTER" )
-	label:SetJustifyV( "MIDDLE" )
-	--bar.Label = label
+	local _label = _statusbar:CreateFontString( nil, "ARTWORK", "GameFontHighlightSmallOutline" )
+	_label:SetPoint( "LEFT", _statusbar, 2, 0 )
+	_label:SetPoint( "RIGHT", _statusbar, -2, 0 )
+	_label:SetTextColor( 1, 1, 1, 1 )
+	_label:SetJustifyH( "CENTER" )
+	_label:SetJustifyV( "MIDDLE" )
 	
-	local arrowLeft = statusbar:CreateTexture( nil, "OVERLAY" )
-	arrowLeft:SetPoint( "RIGHT", statusbar, "LEFT", 0, 0 )
-	arrowLeft:SetTexture( "Interface\\Addons\\cKick\\media\\arrowLeft.tga" )
-	arrowLeft:SetVertexColor( 1, .1, .1 )
-	arrowLeft:SetWidth( height )
-	arrowLeft:SetHeight( height )
-	arrowLeft:Hide()
-	--bar.arrowLeft = arrowLeft
+	local _arrowLeft = _statusbar:CreateTexture( nil, "OVERLAY" )
+	_arrowLeft:SetPoint( "RIGHT", _statusbar, "LEFT", 0, 0 )
+	_arrowLeft:SetTexture( "Interface\\Addons\\cKick\\media\\arrowLeft.tga" )
+	_arrowLeft:SetVertexColor( 1, .1, .1 )
+	_arrowLeft:SetWidth( height )
+	_arrowLeft:SetHeight( height )
+	_arrowLeft:Hide()
 	
-	local arrowRight = statusbar:CreateTexture( nil, "OVERLAY" )
-	arrowRight:SetPoint( "LEFT", statusbar, "RIGHT", 0, 0 )
-	arrowRight:SetTexture( "Interface\\Addons\\cKick\\media\\arrowRight.tga" )
-	arrowRight:SetVertexColor( 1, .1, .1 )
-	arrowRight:SetWidth( height )
-	arrowRight:SetHeight( height )
-	arrowRight:Hide()
-	--bar.arrowRight = arrowRight
+	local _arrowRight = _statusbar:CreateTexture( nil, "OVERLAY" )
+	_arrowRight:SetPoint( "LEFT", _statusbar, "RIGHT", 0, 0 )
+	_arrowRight:SetTexture( "Interface\\Addons\\cKick\\media\\arrowRight.tga" )
+	_arrowRight:SetVertexColor( 1, .1, .1 )
+	_arrowRight:SetWidth( height )
+	_arrowRight:SetHeight( height )
+	_arrowRight:Hide()
 	
-	function bar:BarOnUpdate()
+	local function OnUpdate()
 		local t = GetTime()
-		if ( t >= self.exp ) then
-			statusbar:SetValue( 0 )
-			self:Stop()
+		if ( t >= _expires ) then
+			_statusbar:SetValue( 0 )
+			instance.Stop()
 		else
-			self.remaining = self.exp - t
-			statusbar:SetValue( self.remaining )
-			timer:SetFormattedText( SecondsToTimeDetail( self.remaining ) )
+			_remaining = _expires - t
+			_statusbar:SetValue( _remaining )
+			_timer:SetFormattedText( SecondsToTimeDetail( _remaining ) )
 		end
 	end
 	
-	function bar:BarOnUpdateInvert()
+	local function OnUpdateInverted()
 		local t = GetTime()
-		if ( t >= self.exp ) then
-			statusbar:SetValue( self.duration )
-			self:Stop()
+		if ( t >= _expires ) then
+			_statusbar:SetValue( _duration )
+			instance.Stop()
 		else
-			self.remaining = self.exp - t
-			statusbar:SetValue( self.duration - self.remaining )
-			timer:SetFormattedText( SecondsToTimeDetail( self.remaining ) )
-		end
-	end
-	
-	function bar:ShowArrows()
-		arrowLeft:Show()
-		arrowRight:Show()
-	end
-	
-	function bar:HideArrows()
-		arrowLeft:Hide()
-		arrowRight:Hide()
-	end
-	
-	function bar:IsArrowShown()
-		if ( arrowLeft:IsShown() and arrowRight:IsShown() ) then
-			return true
+			_remaining = _expires - t
+			_statusbar:SetValue( _duration - _remaining )
+			_timer:SetFormattedText( SecondsToTimeDetail( _remaining ) )
 		end
 	end
 
-	function bar:SetLabel( text )
-		label:SetText( text )
+	function instance.GetID()
+		return _id
 	end
-	
-	function bar:SetTextStyle( modFont, modSize, modFlags )
-		local font, size, flags = label:GetFont()
-		label:SetFont( modFont or font, modSize or size, modFlags or flags )
-		
-		font, size, flags = timer:GetFont()
-		timer:SetFont( modFont or font, modSize or size, modFlags or flags )
-	end
-	
-	function bar:SetColor( r, g, b, a )
-		statusbar:SetStatusBarColor( r, g, b, a )
-	end
-	
-	function bar:Start( duration, invert, hideOnStop)
-		internal:Log( "DEBUG", "Starting bar: " .. self.ID )
-		
-		self.duration = duration
-		self.remaining = duration
-		self.exp = GetTime() + duration
-		self.hideOnStop = hideOnStop
-		
-		statusbar:SetMinMaxValues( 0, duration )
 
-		self:SetScript( "OnUpdate", invert and self.BarOnUpdateInvert or self.BarOnUpdate )
-		timer:Show()
-		
-		self:Show()
-		
-		self.isRunning = true
+	function instance.IsRunning()
+		return isRunning
+	end
+
+	function instance.IsEnabled()
+		return _enabled
 	end
 	
-	function bar:Stop( hide )
-		if ( hide or self.hideOnStop ) then
-			self:Hide()
+	function instance.Start( duration, invert, hideOnStop )
+		if ( not _enabled ) then
+			error( "Bar is not enabled" ) end
+
+		internal:Log( "DEBUG", "Starting bar: " .. _id )
+		
+		_duration = duration
+		_remaining = duration
+		_expires = GetTime() + duration
+		_hideOnStop = hideOnStop or false
+		
+		_statusbar:SetMinMaxValues( 0, duration )
+
+		_bar:SetScript( "OnUpdate", ( invert and OnUpdateInverted ) or OnUpdate )
+		_bar:Show()
+
+		_timer:Show()		
+		
+		_isRunning = true
+	end
+	
+	function instance.Stop( hide )
+		if ( not _enabled ) then
+			error( "Bar is not enabled" ) end
+
+		if ( hide or _hideOnStop ) then
+			bar:Hide()
 		end
 		
-		self.duration = 0
-		self.remaining = 0
-		self.exp = 0
-		self.hideOnStop = false
+		_duration = 0
+		_remaining = 0
+		_expires = 0
+		_hideOnStop = false
 		
-		self:SetScript("OnUpdate", nil)
-		timer:Hide()
+		_bar:SetScript( "OnUpdate", nil )
+		_timer:Hide()
 		
-		self.isRunning = false
+		_isRunning = false
+	end
+
+	function instance.SetEnabled( flag )
+		_enabled = flag
+		if ( _enabled ) then 
+			_bar:Show()
+		else 
+			_bar:Hide()
+		end
+	end
+
+	function instance.SetLabel( text )
+		_label:SetText( text )
 	end
 	
-	function bar:SetMinMaxValues( min, max )
-		statusbar:SetMinMaxValues( min, max )
+	function instance.SetMinMaxValues( min, max )
+		_statusbar:SetMinMaxValues( min, max )
 	end
 	
-	function bar:SetValue( value )
-		statusbar:SetValue( 0 )
+	function instance.SetValue( value )
+		_statusbar:SetValue( value )
 	end
 	
-	return bar
+	function instance.SetTextStyle( font, size, flags )
+		local curFont, curSize, curFlags = _label:GetFont()
+		_label:SetFont( font or curFont, size or curSize, flags or curFlags )
+		
+		curFont, curSize, curFlags = _timer:GetFont()
+		_timer:SetFont( font or curFont, size or curSize, flags or curFlags )
+	end
+	
+	function instance.SetColor( r, g, b, a )
+		_statusbar:SetStatusBarColor( r, g, b, a )
+	end
+
+	function instance.SetParent( parent )
+		_bar:SetParent( parent )
+	end
+
+	function instance.SetPoint( from, relative, to, x, y )
+		_bar:SetPoint( from, relative, to, x, y )
+	end
+	
+	function instance.ShowArrows()
+		_arrowLeft:Show()
+		_arrowRight:Show()
+	end
+	
+	function instance.HideArrows()
+		_arrowLeft:Hide()
+		_arrowRight:Hide()
+	end
+	
+	return instance
 end
 
