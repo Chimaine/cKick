@@ -22,11 +22,13 @@ function addon:CreateRotation( id )
 	local function GetNextPlayer()
 		local result, cd = 0, math.huge;
 		for i, player in ipairs( _players ) do
-			local bar = player.Bar
-			if ( not bar.IsRunning() ) then
-				return player
-			elseif ( bar.Remaining() < cd ) then
-				result, cd = player, bar.Remaining()
+			if ( player.Info.PrimarySpell ) then
+				local bar = player.Bar
+				if ( not bar.IsRunning() ) then
+					return player
+				elseif ( bar.Remaining() < cd ) then
+					result, cd = player, bar.Remaining()
+				end
 			end
 		end
 
@@ -76,8 +78,8 @@ function addon:CreateRotation( id )
 		for i, player in ipairs( players ) do
 			local bar = _gui:GetBar( i )
 			bar:SetLabel( player.Name )
-			bar:SetMinMaxValues( 0, player.PrimaryCooldown )
-			bar:SetValue( player.PrimaryCooldown )
+			bar:SetMinMaxValues( 0, 1 )
+			bar:SetValue( 1 )
 			bar:SetEnabled( true )
 
 			_players[i] = {
@@ -93,9 +95,14 @@ function addon:CreateRotation( id )
 		_gui:StartSilence( duration )
 	end
 
-	function instance:StartCooldown( guid )
+	function instance:StartCooldown( guid, spellInfo )
 		local player = GetPlayerByGUID( guid )
 		if ( not player ) then
+			return end
+		if ( not player.Info.PrimarySpell ) then
+			return end
+		if ( spellInfo ~= player.Info.PrimarySpell ) then
+			addon:Log( "DEBUG", "%q used a secondary spell", player.Info.Name )
 			return end
 		
 		addon:Log( "DEBUG", "Starting cooldown for %q: %s", player.Info.Name, player.Info.PrimaryCooldown )
@@ -121,7 +128,7 @@ function addon:CreateRotation( id )
 	function instance:Reset()
 		_players = nil
 		_nextPlayer = nil
-		_gui:SetTarget( nil )
+		instance:SetTarget( nil )
 		_gui:HideAllBars()
 		_gui:Hide()
 	end

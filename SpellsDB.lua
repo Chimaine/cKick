@@ -19,14 +19,14 @@ end
 
 -- ----------------------------------------------------
 
-local function RegisterSpell( classID, spellID, counterDuration, defaultCooldown, isTalent, isPet, ignore )
+local function RegisterSpell( classID, spellID, counterDuration, defaultCooldown, ignore, specIDs )
 	local spellInfo = {
 		["Class"] = classID, 
 		["ID"] = spellID,
 		["CounterDuration"] = counterDuration, 
 		["DefaultCooldown"] = defaultCooldown, 
-		["IsTalent"] = isTalent or false, 
 		["Ignore"] = ignore or false,
+		["SpecIDs"] = specIDs or false,
 	}
 
 	_spells.ByID[spellID] = spellInfo
@@ -34,20 +34,20 @@ local function RegisterSpell( classID, spellID, counterDuration, defaultCooldown
 end
 
 RegisterSpell( "DEATHKNIGHT",  47528, 4,  15, false ) -- Mindfreeze
-RegisterSpell( "DEATHKNIGHT",  47476, 3, 120, false, true ) -- Strangulate (Blood/Honor)
+RegisterSpell( "DEATHKNIGHT",  47476, 3, 120,  true, { 250 } ) -- Strangulate (Blood/Honor)
 RegisterSpell( "DEMONHUNTER", 183752, 3,  15, false ) -- Consume Magic
-RegisterSpell(       "DRUID", 106839, 4,  15,  true ) -- Skull Bash (Feral/Guardian)
-RegisterSpell(       "DRUID", 147362, 5,  60,  true, true ) -- Solar Beam (Balance)
+RegisterSpell(       "DRUID", 106839, 4,  15, false, { 103, 104 } ) -- Skull Bash (Feral/Guardian)
+RegisterSpell(       "DRUID", 147362, 5,  60,  true, { 102 } ) -- Solar Beam (Balance)
 RegisterSpell(      "HUNTER",  78675, 3,  24, false ) -- Counter Shot
 RegisterSpell(        "MAGE",   2139, 6,  24, false ) -- Counterspell
 RegisterSpell(       "ROGUE",   1766, 5,  15, false ) -- Kick
-RegisterSpell(     "PALADIN",  96231, 4,  15,  true ) -- Rebuke (Protection/Retribution)
-RegisterSpell(     "PALADIN",  31935, 3,  15,  true ) -- Avenger's Shield (Protection)
-RegisterSpell(      "PRIEST",  15487, 3,  45,  true, true ) -- Silence (Shadow)
+RegisterSpell(     "PALADIN",  96231, 4,  15, false, { 66, 70 } ) -- Rebuke (Protection/Retribution)
+RegisterSpell(     "PALADIN",  31935, 3,  15, false, { 65 } ) -- Avenger's Shield (Protection)
+RegisterSpell(      "PRIEST",  15487, 3,  45,  true, { 258 } ) -- Silence (Shadow)
 RegisterSpell(        "MONK", 116705, 4,  15, false ) -- Spear Hand Strike
 RegisterSpell(      "SHAMAN",  57994, 3,  12, false ) -- Wind Shear
-RegisterSpell(     "WARLOCK",  19647, 6,  24, false, true ) -- Spell Lock (Felhunter)
-RegisterSpell(     "WARLOCK", 115781, 6,  24, false, true ) -- Optical Blast (Observer)
+RegisterSpell(     "WARLOCK",  19647, 6,  24,  true ) -- Spell Lock (Felhunter)
+RegisterSpell(     "WARLOCK", 115781, 6,  24,  true ) -- Optical Blast (Observer)
 RegisterSpell(     "WARRIOR",   6552, 4,  15, false ) -- Pummel
 
 -- ----------------------------------------------------
@@ -62,9 +62,24 @@ function addon.Spells:GetSpellsForClass( classID )
 	return _spells.ByClass[classID]
 end
 
-function addon.Spells:GetPrimarySpell( classID )
+local function contains( t, value )
+	if ( value ~= nil ) then
+		return false end
+
+	for _, v in next, t do
+		if ( v == value ) then
+			return true end
+	end
+
+	return false
+end
+
+function addon.Spells:GetPrimarySpell( classID, specID )
 	for k, spell in pairs( _spells.ByClass[classID] ) do
-		if ( ( not spell.Ignore ) and ( not spell.IsTalent ) ) then
+		if ( not specID ) and ( not spell.SpecIDs ) then
+			return spell end
+
+		if ( contains( spell.SpecIDs, specID ) ) then
 			return spell 
 		end
 	end

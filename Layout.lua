@@ -154,6 +154,10 @@ local function CreateBar( width, height )
 	
 	-- ----------------------------------------------------
 
+	function instance:GetFrame()
+		return _bar
+	end
+
 	function instance:IsRunning()
 		return _isRunning
 	end
@@ -216,6 +220,7 @@ local function CreateBar( width, height )
 			_bar:Show()
 		else 
 			_bar:Hide()
+			instance:HideArrows()
 		end
 	end
 
@@ -299,15 +304,19 @@ function addon:CreateGroup( id )
 	end
 
 	function instance:ShowLockoutBar( flag )
-		--_silenceBar:SetHeight( flag and 18 or 0 )
+		_silenceBar:SetEnabled( flag )
+		instance:UpdateLayout()
 	end
 
-	function instance:GetBar( id )
+	function instance:GetBar( id, dontCreate )
 		local bar = _bars[id]
-		if ( bar ) then
+		if ( bar or dontCreate ) then
 			return bar end
 
-		local spacing = ( ( 18 + 1 ) * ( id ) ) + 3
+		local spacing = ( ( 18 + 1 ) * ( id - 1 ) ) + 3
+		if ( _silenceBar:IsEnabled() ) then
+			spacing = spacing + 18 + 1
+		end
 
 		bar = CreateBar( 200, 18 )
 		bar:SetParent( _anchor )
@@ -320,6 +329,16 @@ function addon:CreateGroup( id )
 
 		_bars[id] = bar
 		return bar
+	end
+
+	function instance:UpdateLayout()
+		for i, bar in next, _bars do
+			local spacing = ( ( 18 + 1 ) * ( i - 1 ) ) + 3
+			if ( _silenceBar:IsEnabled() ) then
+				spacing = spacing + 18 + 1
+			end
+			bar:SetPoint( "TOP", _anchor, "BOTTOM", 0, -spacing )
+		end 
 	end
 
 	function instance:HideAllBars()
@@ -335,6 +354,8 @@ function addon:CreateGroup( id )
 	function instance:Hide()
 		_anchor:Hide()
 	end
+
+	instance:ShowLockoutBar( false )
 
 	return instance
 end

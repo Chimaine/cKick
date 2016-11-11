@@ -70,6 +70,8 @@ function events:PLAYER_LOGIN()
 
 	events:RegisterEvent( "CHAT_MSG_ADDON" )
 	events:RegisterEvent( "COMBAT_LOG_EVENT_UNFILTERED" )
+	events:RegisterEvent( "PLAYER_SPECIALIZATION_CHANGED" )
+	events:RegisterEvent( "INSPECT_READY" )
 		
 	events:UnregisterEvent( "PLAYER_LOGIN" )
 end
@@ -89,16 +91,15 @@ function events:SPELL_CAST_SUCCESS( timestamp, event, hideCaster,
 									spellID, spellName, spellSchool )	
 	if ( bit.band( sourceFlags, COMBATLOG_OBJECT_AFFILIATION_OUTSIDER ) > 0 ) then
 		return end
-
-	addon:Log( "DEBUG", "%q casted %s:%s", sourceName, spellID, spellName )
 	
 	local spellInfo = addon.Spells:GetSpellByID( spellID );
 	if ( not spellInfo ) then
-		addon:Log( "DEBUG", "Ignoring spell %i", spellID )
 		return end
 
-	for _, rotation in pairs( _rotations ) do
-		rotation:StartCooldown( sourceGUID )
+	addon:Log( "DEBUG", "%q casted %s:%s", sourceName, spellID, spellName )
+
+	for _, rotation in next, _rotations do
+		rotation:StartCooldown( sourceGUID, spellInfo )
 	end
 end
 
@@ -106,20 +107,32 @@ function events:SPELL_INTERRUPT( timestamp, event, hideCaster,
 								 sourceGUID, sourceName, sourceFlags, sourceRaidFlags, 
 								 destGUID, destName, destFlags, destRaidFlags, 
 								 spellID, spellName, spellSchool,
-								 extraSpellID, extraSpellName, extraSchool )
-	addon:Log( "DEBUG", sourceGUID .. " interrupted " .. destGUID )
-	addon:Log( "DEBUG", "%i, %i, %i", spellID, spellName, spellSchool )
-	addon:Log( "DEBUG", "%i, %i, %i", extraSpellID, extraSpellName, extraSchool )
-		
+								 extraSpellID, extraSpellName, extraSchool )		
 	local spellInfo = addon.Spells:GetSpellByID( spellID );
 	if ( not spellInfo ) then
 		return end
+
+	addon:Log( "DEBUG", "%q interrupted %q with %s:%s", sourceGUID, destGUID, spellID, spellName )
 	
 	for _, rotation in next, _rotations do
 		if ( rotation:GetTarget() == destGUID ) then
 			rotation:StartLockout( spellInfo.CounterDuration )
 		end
 	end
+end
+
+function events:PLAYER_SPECIALIZATION_CHANGED( unitID )
+	addon:Log( "DEBUG", "PLAYER_SPECIALIZATION_CHANGED for %q", unitID )
+
+	_players:StartPlayerInfoUpdate( unitID )
+end
+
+function events:INSPECT_READY( guid )
+	addon:Log( "DEBUG", "INSPECT_READY for %q", guid )
+
+	ClearInspectPlayer( guid )
+
+	_players:UpdatePlayerInfo( guid )
 end
 
 function events:CHAT_MSG_ADDON( prefix, message, channel, sender )
@@ -158,7 +171,13 @@ function addon:SetPlayers( rotationID, ... )
 	local playerInfos = {}
 	for n = 1, select( '#', ... ) do
 		local player = select( n, ... )
-		table.insert( playerInfos, _players:GetPlayerInfo( player ) )
+		local info = _players:GetPlayerInfo( player )
+
+		if ( not info ) then
+			addon:Print( "Unable to add player %q to rotation (not found)", player )
+			return end
+
+		table.insert( playerInfos, info )		
 	end
 
 	if ( #playerInfos < 1 ) then
@@ -166,8 +185,6 @@ function addon:SetPlayers( rotationID, ... )
 
 	rotation:SetPlayers( playerInfos )
 	rotation:GetGUI():Show()
-
-	rotation:StartCooldown( playerInfos[1].GUID )
 end
 
 function addon:RestartRotation( rotationID )
