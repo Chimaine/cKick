@@ -8,5 +8,5 @@
 ## SavedVariables: cKick_Settings
 ## OptionalDeps: LibStub, CallbackHandler-1.0, LibSharedMedia-3.0
 
-embeds.xml
+libs.xml
 cKick.xml

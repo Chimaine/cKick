@@ -1,9 +1,9 @@
 <Ui xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
-    <!--<Script file="Locals\enUS.lua" />-->
-    
 	<Script file="utils.lua" />
-	<Script file="database.lua" />
-    <Script file="bar.lua" />
-	<Script file="spells.lua" />
-    <Script file="cKick.lua" />
+	<Script file="Database.lua" />
+	<Script file="SpellsDB.lua" />
+	<Script file="PlayerDB.lua" />
+	<Script file="Rotation.lua" />
+    <Script file="Layout.lua" />
+    <Script file="Main.lua" />
 </Ui>

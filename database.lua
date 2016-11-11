@@ -1,44 +1,50 @@
-local ADDON_NAME, internal = ...
+--[[
+	cKick
+	Copyright(c) 2016, Tobias 'Chimaine' Rummelt, kontakt(at)rummelt-software.de
+	All rights reserved
+]]
+
+local ADDON_NAME, addon = ...
 local DB_NAME = "cKick_Settings"
 
 -- ----------------------------------------------------
 
-internal.DBVersion = 1
+local _version = 2
 
-function internal:GetDefaultSettings() 
+local function GetDefaultSettings() 
 	return {	
-		DBVersion = 1,
+		Version = _version,
 		
-		scale = 1,
-		point = { "CENTER", UIParent, "CENTER", 0, 0 },
+		Scale = 1,
+		Points = {},
 		
-		barWidth = 150,
-		barHeight = 15,
-		barSpacing = 1,
-		barTexture = "darkborder",
+		BarWidth = 150,
+		BarHeight = 15,
+		BarSpacing = 1,
+		BarTexture = "darkborder",
 		
-		barColor = { .31, .41, .53 },
-		classColor = false,
+		BarColor = { .31, .41, .53 },
+		ClassColor = false,
 		
-		fontSize = 10,
-		fontFace = "Friz Quadrata TT",	
+		FontSize = 10,
+		FontFace = "Friz Quadrata TT",	
 	}
 end
 
-function internal:ReadSettings()
+function addon:ReadSettings()
 	local db = _G[DB_NAME]
 	if ( not db ) then
-		self:Log( "DEBUG", "Creating new DB" )
-		db = self:GetDefaultSettings()
+		addon:Log( "DEBUG", "Creating new DB" )
+		db = GetDefaultSettings()
 		_G[DB_NAME] = db
 	end
 	
-	if ( ( not db.DBVersion ) or ( self.DBVersion > db.DBVersion ) ) then
+	if ( ( not db.Version ) or ( _version > db.Version ) ) then
 		-- TODO
-		self:Log( "DEBUG", "Upgrading DB from version", db.DBVersion, "to", self.DBVersion )
-		db = self:GetDefaultSettings()
+		addon:Log( "DEBUG", "Upgrading DB from version", db.Version, "to", _version )
+		db = GetDefaultSettings()
 		_G[DB_NAME] = db
 	end
-	
-	self.DB = db
+
+	return db
 end

@@ -1,26 +1,32 @@
-local ADDON_NAME, internal = ...
+--[[
+	cKick
+	Copyright(c) 2016, Tobias 'Chimaine' Rummelt, kontakt(at)rummelt-software.de
+	All rights reserved
+]]
 
-internal.Title = GetAddOnMetadata( ADDON_NAME, "Title" )
-internal.Version = GetAddOnMetadata( ADDON_NAME, "Version" )
+local ADDON_NAME, addon = ...
+
+-- ----------------------------------------------------
+
+addon.Title = GetAddOnMetadata( ADDON_NAME, "Title" )
+addon.Version = GetAddOnMetadata( ADDON_NAME, "Version" )
 
 -- ----------------------------------------------------
 
 local logLevels = { ["ALL"] = 1, ["TRACE"] = 2, ["DEBUG"] = 3, ["INFO"] = 4, ["WARN"] = 5, ["ERROR"] = 6, ["NONE"] = 7 }
 
-internal.LogLevel = "ALL"
+addon.LogLevel = "ALL"
 
-function internal:Log( level, ... )
-	local intLevel = logLevels[level];
-	local maxLevel = logLevels[internal.LogLevel];
+function addon:Log( level, msg, ... )
+	local intLevel = logLevels[level]
+	local maxLevel = logLevels[addon.LogLevel]
 	
 	if ( intLevel < maxLevel ) then
 		return end
 
-	local output = "[" .. self.Title .. "][" .. level .. "]";
+	DEFAULT_CHAT_FRAME:AddMessage( "[" .. self.Title .. "][" .. level .. "] " .. string.format( msg, ... ) )
+end
 
-	for i = 1, select( "#", ... ) do
-		output = output .. " " .. tostring( select( i, ... ) );
-	end
-
-	DEFAULT_CHAT_FRAME:AddMessage( output );
+function addon:Print( msg, ... )
+	DEFAULT_CHAT_FRAME:AddMessage( "[" .. self.Title .. "] " .. string.format( msg, ... ) )
 end
