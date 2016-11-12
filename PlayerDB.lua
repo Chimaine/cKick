@@ -11,7 +11,6 @@ local ADDON_NAME, addon = ...
 function addon:CreatePlayerDB()
 	local instance = {}
 	local _players = {}
-	local _pendingUpdates = {}
 
 	-- ----------------------------------------------------
 
@@ -34,6 +33,7 @@ function addon:CreatePlayerDB()
 			["GUID"] = guid,
 			["Name"] = name,
 			["Class"] = classID,
+			["Inspected"] = false,
 		}
 
 		SetPrimarySpellInfo( info )
@@ -41,61 +41,74 @@ function addon:CreatePlayerDB()
 		return info
 	end
 
-	local function RequestInspect( unitID )
-		local guid = UnitGUID( unitID )
-		if ( not guid ) then
+	local function RequestInspect( info, reset )
+		if ( info.Inspected and ( not reset ) ) then
 			return end
 
-		addon:Log( "DEBUG", "Requesting inspect for %q, %q", unitID, guid )
+		addon:Log( "DEBUG", "Requesting inspect for %q", info.GUID )
 
-		_pendingUpdates[guid] = unitID
+		info.Inspected = false
 
-		NotifyInspect( unitID )
+		if ( CanInspect( info.Name ) ) then
+			NotifyInspect( info.Name )
+		else
+			addon:Log( "WARN", "Cannot inspect %q, specialization unavailable", info.GUID )
+		end
 	end
 
 	function instance:GetPlayerInfo( unitID )
+		if ( not UnitExists( unitID )
+		  or not UnitIsPlayer( unitID )
+		  or not UnitIsFriend( "player", unitID ) ) then
+			return end
+
 		local guid = UnitGUID( unitID )
 		if ( not guid )	then
 			return end
-		
+
 		local info = _players[guid]
 		if ( not info ) then
 			info = RetrievePlayerInfo( guid )
 			_players[guid] = info
+
+			RequestInspect( info )
 		end
 
-		RequestInspect( unitID )
-				
 		return info
 	end
 
-	function instance:StartPlayerInfoUpdate( unitID )
+	function instance:StartPlayerInfoUpdate( unitID, reset )
 		local guid = UnitGUID( unitID )
 		if ( not guid )	then
 			return end
-		if ( not _players[guid] ) then
-			return end
 
-		RequestInspect( unitID )
-	end
-
-	function instance:UpdatePlayerInfo( guid )
-		local unitID = _pendingUpdates[guid]
-		if ( not unitID ) then
-			return end
-			
 		local info = _players[guid]
 		if ( not info ) then
 			return end
 
-		local specID = GetInspectSpecialization( unitID )
-		addon:Log( "DEBUG", "%q:%q spec: %s", guid, unitID, specID )
+		RequestInspect( info, reset )
+	end
+
+	function instance:StartMissingInfoUpdates()
+		for _, info in next, _players do
+			RequestInspect( info )
+		end
+	end
+
+	function instance:UpdatePlayerInfo( guid )
+		local info = _players[guid]
+		if ( not info ) then
+			return end
+
+		local specID = GetInspectSpecialization( info.Name )
+		addon:Log( "DEBUG", "%q spec: %s", guid, specID )
 
 		if ( specID == 0 ) then
 			addon:Log( "WARN", "GetInspectSpecialization failed for %q:%q", guid, unitID )
 			return end
-		
+
 		SetPrimarySpellInfo( info )
+		info.Inspected = true
 	end
 
 	function instance:RemovePlayer( guid )

@@ -60,9 +60,6 @@ local function CreateAnchor( id )
 		anchor:StopMovingOrSizing()
 		SaveGroupPosition( _id, { anchor:GetPoint() } )
 	end )
-	
-	anchor:SetScript( "OnShow", function() anchor.IsAnchorShown = true end )
-	anchor:SetScript( "OnHide", function() anchor.IsAnchorShown = false end )
 
 	local label = anchor:CreateFontString( nil, "ARTWORK", "GameFontHighlightSmallOutline" )
 	label:SetPoint( "CENTER", anchor, 0, 0 )
@@ -72,7 +69,7 @@ local function CreateAnchor( id )
 		label:SetText( text )
 	end
 
-	return anchor;
+	return anchor
 end
 
 local function CreateBar( width, height )
@@ -173,8 +170,6 @@ local function CreateBar( width, height )
 	function instance:Start( duration, invert, hideOnStop )
 		if ( not _enabled ) then
 			error( "Bar is not enabled" ) end
-
-		addon:Log( "DEBUG", "Starting bar" )
 		
 		_duration = duration
 		_remaining = duration
@@ -273,7 +268,7 @@ local function CreateBar( width, height )
 	return instance
 end
 
-local function CreateSilenceBar( parent )
+local function CreateLockoutBar( parent )
 	local bar = CreateBar( 200, 18 )
 	bar:SetParent( parent )
 	bar:SetPoint( "TOP", parent, "BOTTOM", 0, 0 )
@@ -281,9 +276,9 @@ local function CreateSilenceBar( parent )
 	bar:SetColor( .31, .41, .53 )
 
 	bar:SetMinMaxValues( 0, 1 )
-	bar:SetValue( 1 )
+	bar:SetValue( 0 )
 
-	bar:SetLabel( "Silence" )
+	bar:SetLabel( "Lockout" )
 	
 	return bar
 end
@@ -292,19 +287,19 @@ function addon:CreateGroup( id )
 	local instance = {}
 
 	local _anchor = CreateAnchor( id )
-	local _silenceBar = CreateSilenceBar( _anchor )
+	local _lockoutBar = CreateLockoutBar( _anchor )
 	local _bars = {}
 
 	function instance:SetLabel( label )
 		_anchor:SetLabel( label )
 	end
 
-	function instance:StartSilence( duration )
-		_silenceBar:Start( duration, false, false )
+	function instance:StartLockout( duration )
+		_lockoutBar:Start( duration, false, false )
 	end
 
 	function instance:ShowLockoutBar( flag )
-		_silenceBar:SetEnabled( flag )
+		_lockoutBar:SetEnabled( flag )
 		instance:UpdateLayout()
 	end
 
@@ -314,7 +309,7 @@ function addon:CreateGroup( id )
 			return bar end
 
 		local spacing = ( ( 18 + 1 ) * ( id - 1 ) ) + 3
-		if ( _silenceBar:IsEnabled() ) then
+		if ( _lockoutBar:IsEnabled() ) then
 			spacing = spacing + 18 + 1
 		end
 
@@ -322,7 +317,6 @@ function addon:CreateGroup( id )
 		bar:SetParent( _anchor )
 		bar:SetPoint( "TOP", _anchor, "BOTTOM", 0, -spacing )
 		bar:SetTextStyle( LSM:Fetch( "font", "Friz Quadrata TT" ), 11 )
-		bar:SetColor( .31, .41, .53 )
 		
 		bar:SetMinMaxValues( 0, 1 )
 		bar:SetValue( 1 )
@@ -334,7 +328,7 @@ function addon:CreateGroup( id )
 	function instance:UpdateLayout()
 		for i, bar in next, _bars do
 			local spacing = ( ( 18 + 1 ) * ( i - 1 ) ) + 3
-			if ( _silenceBar:IsEnabled() ) then
+			if ( _lockoutBar:IsEnabled() ) then
 				spacing = spacing + 18 + 1
 			end
 			bar:SetPoint( "TOP", _anchor, "BOTTOM", 0, -spacing )

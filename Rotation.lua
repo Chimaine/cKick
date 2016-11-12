@@ -59,7 +59,7 @@ function addon:CreateRotation( id )
 		return _nextPlayer
 	end
 
-	function instance:GetPlayers() 
+	function instance:GetPlayers()
 		return _players
 	end
 
@@ -82,6 +82,10 @@ function addon:CreateRotation( id )
 			bar:SetValue( 1 )
 			bar:SetEnabled( true )
 
+			--bar:SetColor( .31, .41, .53 )
+			local color = RAID_CLASS_COLORS[player.Class]
+			bar:SetColor( color.r, color.g, color.b )
+
 			_players[i] = {
 				["Info"] = player,
 				["Bar"] = bar,
@@ -92,7 +96,7 @@ function addon:CreateRotation( id )
 	end
 
 	function instance:StartLockout( duration )
-		_gui:StartSilence( duration )
+		_gui:StartLockout( duration )
 	end
 
 	function instance:StartCooldown( guid, spellInfo )
@@ -104,7 +108,7 @@ function addon:CreateRotation( id )
 		if ( spellInfo ~= player.Info.PrimarySpell ) then
 			addon:Log( "DEBUG", "%q used a secondary spell", player.Info.Name )
 			return end
-		
+
 		addon:Log( "DEBUG", "Starting cooldown for %q: %s", player.Info.Name, player.Info.PrimaryCooldown )
 
 		player.Bar:Start( player.Info.PrimaryCooldown, true )
@@ -120,8 +124,8 @@ function addon:CreateRotation( id )
 		_nextPlayer = GetNextPlayer()
 		_nextPlayer.Bar:ShowArrows()
 
-		addon:Log( "DEBUG", "Advancing rotation from %q to %q", 
-			lastPlayer and lastPlayer.Info.Name or "None", 
+		addon:Log( "DEBUG", "Advancing rotation from %q to %q",
+			lastPlayer and lastPlayer.Info.Name or "None",
 			_nextPlayer and _nextPlayer.Info.Name or "None" )
 	end
 

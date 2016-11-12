@@ -15,9 +15,13 @@ addon.Version = GetAddOnMetadata( ADDON_NAME, "Version" )
 
 local logLevels = { ["ALL"] = 1, ["TRACE"] = 2, ["DEBUG"] = 3, ["INFO"] = 4, ["WARN"] = 5, ["ERROR"] = 6, ["NONE"] = 7 }
 
+addon.EnableLog = false
 addon.LogLevel = "ALL"
 
 function addon:Log( level, msg, ... )
+	if ( not addon.EnableLog ) then
+		return end
+	
 	local intLevel = logLevels[level]
 	local maxLevel = logLevels[addon.LogLevel]
 	
