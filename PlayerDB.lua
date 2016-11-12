@@ -49,11 +49,7 @@ function addon:CreatePlayerDB()
 
 		info.Inspected = false
 
-		if ( CanInspect( info.Name ) ) then
-			NotifyInspect( info.Name )
-		else
-			addon:Log( "WARN", "Cannot inspect %q, specialization unavailable", info.GUID )
-		end
+		NotifyInspect( info.Name )
 	end
 
 	function instance:GetPlayerInfo( unitID )
@@ -104,7 +100,7 @@ function addon:CreatePlayerDB()
 		addon:Log( "DEBUG", "%q spec: %s", guid, specID )
 
 		if ( specID == 0 ) then
-			addon:Log( "WARN", "GetInspectSpecialization failed for %q:%q", guid, unitID )
+			addon:Log( "WARN", "GetInspectSpecialization failed for %q:%q", guid, info.Name )
 			return end
 
 		SetPrimarySpellInfo( info )
