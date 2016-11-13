@@ -32,7 +32,14 @@ local function OnSlashCmd( ... )
 	addon:Log( "DEBUG", "Slash Command: " .. table.concat( { ... }, ", " ) )
 
 	local arg1, arg2, arg3 = ...
-	if ( arg1 == "rotation" ) then
+	if ( arg1 == '' ) then
+		addon:Print( "/ckick rotation set players <RotationID> <UnitID 1> ..." )
+		addon:Print( "/ckick rotation set target <RotationID> [<UnitID>]" )
+		addon:Print( "/ckick rotation restart <RotationID>" )
+		addon:Print( "/ckick rotation remove <RotationID>" )
+		addon:Print( "/ckick log <enable|disable>" )
+		return
+	elseif ( arg1 == "rotation" ) then
 		if ( arg2 == "set" ) then
 			if ( arg3 == "players" ) then
 				addon:SetPlayers( select( 4, ... ) ) return
