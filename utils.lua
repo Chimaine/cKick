@@ -21,10 +21,10 @@ addon.LogLevel = "ALL"
 function addon:Log( level, msg, ... )
 	if ( not addon.EnableLog ) then
 		return end
-	
+
 	local intLevel = logLevels[level]
 	local maxLevel = logLevels[addon.LogLevel]
-	
+
 	if ( intLevel < maxLevel ) then
 		return end
 

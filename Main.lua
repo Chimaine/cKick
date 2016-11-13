@@ -31,35 +31,37 @@ end )
 local function OnSlashCmd( ... )
 	addon:Log( "DEBUG", "Slash Command: " .. table.concat( { ... }, ", " ) )
 
-	local arg1, arg2, arg3 = ...
+	local arg1, arg2 = ...
 	if ( arg1 == '' ) then
-		addon:Print( "/ckick rotation set players <RotationID> <UnitID 1> ..." )
-		addon:Print( "/ckick rotation set target <RotationID> [<UnitID>]" )
+		addon:Print( "/ckick rotation players <RotationID> <UnitID 1> ..." )
+		addon:Print( "/ckick rotation target <RotationID> [<UnitID>]" )
 		addon:Print( "/ckick rotation restart <RotationID>" )
 		addon:Print( "/ckick rotation remove <RotationID>" )
 		addon:Print( "/ckick log <enable|disable>" )
 		return
 	elseif ( arg1 == "rotation" ) then
-		if ( arg2 == "set" ) then
-			if ( arg3 == "players" ) then
-				addon:SetPlayers( select( 4, ... ) ) return
-			elseif ( arg3 == "target" ) then
-				addon:SetTarget( select( 4, ... ) ) return
-			end
+		if ( arg2 == "players" ) then
+			addon:SetPlayers( select( 3, ... ) ) return
+		elseif ( arg2 == "target" ) then
+			addon:SetTarget( select( 3, ... ) ) return
 		elseif ( arg2 == "restart" ) then
 			addon:RestartRotation( arg3 ) return
 		elseif ( arg2 == "remove" ) then
 			addon:RemoveRotation( arg3 ) return
+		else
+			addon:Print( "Unknown argument for %q: %q", arg1, arg2 )
 		end
 	elseif ( arg1 == "log" ) then
 		if ( arg2 == "enable" ) then
 			addon.EnableLog = true return
 		elseif ( arg2 == "disable" ) then
 			addon.EnableLog = false return
+		else
+			addon:Print( "Unknown argument for %q: %q", arg1, arg2 )
 		end
+	else
+		addon:Print( "Unknown command: %q. Type /ckick to get a list of available commands", arg1 )
 	end
-
-	addon:Print( "Unknown command" )
 end
 
 function events:ADDON_LOADED( arg )
@@ -92,7 +94,7 @@ end
 function events:PLAYER_SPECIALIZATION_CHANGED( unitID )
 	addon:Log( "DEBUG", "PLAYER_SPECIALIZATION_CHANGED for %q", unitID )
 
-	_players:StartPlayerInfoUpdate( unitID )
+	_players:StartPlayerInfoUpdate( unitID, true )
 end
 
 function events:INSPECT_READY( guid )

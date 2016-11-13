@@ -17,6 +17,8 @@ function addon:CreatePlayerDB()
 	local function SetPrimarySpellInfo( info )
 		local primarySpell = addon.Spells:GetPrimarySpell( info.Class, info.Spec )
 		if ( primarySpell ) then
+			addon:Log( "DEBUG", "Primary spell for %s,%s : %s", info.Class, info.Spec, primarySpell.ID )
+
 			info["PrimarySpell"] = primarySpell
 			info["PrimaryCooldown"] = primarySpell.DefaultCooldown
 		end
@@ -102,6 +104,8 @@ function addon:CreatePlayerDB()
 		if ( specID == 0 ) then
 			addon:Log( "WARN", "GetInspectSpecialization failed for %q:%q", guid, info.Name )
 			return end
+
+		info.Spec = specID
 
 		SetPrimarySpellInfo( info )
 		info.Inspected = true

@@ -21,10 +21,10 @@ end
 
 local function RegisterSpell( classID, spellID, counterDuration, defaultCooldown, ignore, specIDs )
 	local spellInfo = {
-		["Class"] = classID, 
+		["Class"] = classID,
 		["ID"] = spellID,
-		["CounterDuration"] = counterDuration, 
-		["DefaultCooldown"] = defaultCooldown, 
+		["CounterDuration"] = counterDuration,
+		["DefaultCooldown"] = defaultCooldown,
 		["Ignore"] = ignore or false,
 		["SpecIDs"] = specIDs or false,
 	}
@@ -37,8 +37,8 @@ RegisterSpell( "DEATHKNIGHT",  47528, 4,  15, false ) -- Mindfreeze
 RegisterSpell( "DEATHKNIGHT",  47476, 3, 120,  true, { 250 } ) -- Strangulate (Blood/Honor)
 RegisterSpell( "DEMONHUNTER", 183752, 3,  15, false ) -- Consume Magic
 RegisterSpell(       "DRUID", 106839, 4,  15, false, { 103, 104 } ) -- Skull Bash (Feral/Guardian)
-RegisterSpell(       "DRUID", 147362, 5,  60,  true, { 102 } ) -- Solar Beam (Balance)
-RegisterSpell(      "HUNTER",  78675, 3,  24, false ) -- Counter Shot
+RegisterSpell(       "DRUID",  78675, 5,  60,  true, { 102 } ) -- Solar Beam (Balance)
+RegisterSpell(      "HUNTER", 147362, 3,  24, false ) -- Counter Shot
 RegisterSpell(        "MAGE",   2139, 6,  24, false ) -- Counterspell
 RegisterSpell(       "ROGUE",   1766, 5,  15, false ) -- Kick
 RegisterSpell(     "PALADIN",  96231, 4,  15, false, { 66, 70 } ) -- Rebuke (Protection/Retribution)
@@ -63,7 +63,7 @@ function addon.Spells:GetSpellsForClass( classID )
 end
 
 local function contains( t, value )
-	if ( value ~= nil ) then
+	if ( value == nil ) then
 		return false end
 
 	for _, v in next, t do
@@ -76,26 +76,15 @@ end
 
 function addon.Spells:GetPrimarySpell( classID, specID )
 	for k, spell in pairs( _spells.ByClass[classID] ) do
-		if ( not specID ) and ( not spell.SpecIDs ) then
-			return spell end
-
-		if ( contains( spell.SpecIDs, specID ) ) then
-			return spell 
+		if ( specID and spell.SpecIDs ) then
+			if ( contains( spell.SpecIDs, specID ) ) then
+				return spell end
+		elseif ( not spell.SpecIDs ) then
+			return spell
 		end
 	end
 end
 
 function addon.Spells:GetSpells()
 	return _spells
-end
-
-function addon.Spells:GetPlayerPrimarySpell()
-	local _, classID, _ = UnitClass( "player" ); 
-	local spells = _spells.ByClass[classID]
-	for k, v in pairs( spells ) do
-		if ( ( not spell.Ignore ) and IsSpellKnown( spell.ID ) ) then
-			local _, cooldown, _ = GetSpellCooldown( spellID )
-			return spell, cooldown
-		end
-	end
 end

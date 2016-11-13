@@ -17,24 +17,6 @@ function addon:CreateRotation( id )
 
 	-- ----------------------------------------------------
 
-	-- Returns the first player that is off cooldown
-	-- or the player with the smallest remaining cooldown.
-	local function GetNextPlayer()
-		local result, cd = 0, math.huge;
-		for i, player in ipairs( _players ) do
-			if ( player.Info.PrimarySpell ) then
-				local bar = player.Bar
-				if ( not bar.IsRunning() ) then
-					return player
-				elseif ( bar.Remaining() < cd ) then
-					result, cd = player, bar.Remaining()
-				end
-			end
-		end
-
-		return result;
-	end
-
 	local function GetPlayerByGUID( guid )
 		if ( not _players ) then
 			return end
@@ -55,8 +37,22 @@ function addon:CreateRotation( id )
 		return _target
 	end
 
+	-- Returns the first player that is off cooldown
+	-- or the player with the smallest remaining cooldown.
 	function instance:GetNextPlayer()
-		return _nextPlayer
+		local result, cd = nil, math.huge;
+		for i, player in ipairs( _players ) do
+			if ( player.Info.PrimarySpell ) then
+				local bar = player.Bar
+				if ( not bar.IsRunning() ) then
+					return player
+				elseif ( bar.Remaining() < cd ) then
+					result, cd = player, bar.Remaining()
+				end
+			end
+		end
+
+		return result
 	end
 
 	function instance:GetPlayers()
@@ -103,8 +99,6 @@ function addon:CreateRotation( id )
 		local player = GetPlayerByGUID( guid )
 		if ( not player ) then
 			return end
-		if ( not player.Info.PrimarySpell ) then
-			return end
 		if ( spellInfo ~= player.Info.PrimarySpell ) then
 			addon:Log( "DEBUG", "%q used a secondary spell", player.Info.Name )
 			return end
@@ -121,7 +115,10 @@ function addon:CreateRotation( id )
 			lastPlayer.Bar:HideArrows()
 		end
 
-		_nextPlayer = GetNextPlayer()
+		_nextPlayer = instance:GetNextPlayer()
+		if ( not _nextPlayer ) and ( not lastPlayer ) then
+			return end
+
 		_nextPlayer.Bar:ShowArrows()
 
 		addon:Log( "DEBUG", "Advancing rotation from %q to %q",
