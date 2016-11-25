@@ -18,6 +18,7 @@ _G[ADDON_NAME] = addon
 
 local _players = addon:CreatePlayerDB()
 local _rotations = {}
+local _textWarning = addon:CreateWarningText()
 
 -- ----------------------------------------------------
 -- Event Handler
@@ -29,7 +30,7 @@ events:SetScript( "OnEvent", function( self, event, ... )
 end )
 
 local function OnSlashCmd( ... )
-	addon:Log( "DEBUG", "Slash Command: " .. table.concat( { ... }, ", " ) )
+	addon:Log( "Slash Command: " .. table.concat( { ... }, ", " ) )
 
 	local arg1, arg2 = ...
 	if ( arg1 == '' ) then
@@ -51,6 +52,8 @@ local function OnSlashCmd( ... )
 		else
 			addon:Print( "Unknown argument for %q: %q", arg1, arg2 )
 		end
+	elseif ( arg1 == "sync" ) then
+		addon:SyncRotations()
 	elseif ( arg1 == "log" ) then
 		if ( arg2 == "enable" ) then
 			addon.EnableLog = true return
@@ -87,27 +90,48 @@ function events:PLAYER_LOGIN()
 	events:RegisterEvent( "COMBAT_LOG_EVENT_UNFILTERED" )
 	events:RegisterEvent( "PLAYER_SPECIALIZATION_CHANGED" )
 	events:RegisterEvent( "INSPECT_READY" )
+	events:RegisterEvent( "PLAYER_REGEN_DISABLED" )
 
 	events:UnregisterEvent( "PLAYER_LOGIN" )
 end
 
 function events:PLAYER_SPECIALIZATION_CHANGED( unitID )
-	addon:Log( "DEBUG", "PLAYER_SPECIALIZATION_CHANGED for %q", unitID )
+	addon:Log( "PLAYER_SPECIALIZATION_CHANGED for %q", unitID )
 
 	_players:StartPlayerInfoUpdate( unitID, true )
 end
 
 function events:INSPECT_READY( guid )
-	addon:Log( "DEBUG", "INSPECT_READY for %q", guid )
+	addon:Log( "INSPECT_READY for %q", guid )
 
-	_players:UpdatePlayerInfo( guid )
+	if ( _players:UpdatePlayerInfo( guid ) ) then
+		for _, rotation in next, _rotations do
+			rotation:AdvanceRotation()
+		end
+	end
 end
 
-function events:CHAT_MSG_ADDON( prefix, message, channel, sender )
+function events:CHAT_MSG_ADDON( prefix, msg, channel, sender )
 	if ( prefix ~= ADDON_NAME ) then
 		return end
 
-	addon:Log( "DEBUG", "AddonMessageReceived from " .. sender .. " via " .. channel )
+	addon:Log( "AddonMessageReceived from " .. sender .. " via " .. channel )
+	addon:Log( " -> " .. msg )
+
+	local args = { strsplit( ";", msg ) }
+	if ( args[1] == "ROTATION" ) then
+		addon:Log( "Received ROTATION sync message" )
+	elseif ( args[1] == "TARGET" ) then
+		addon:Log( "Received TARGET sync message" )
+	else
+		addon:Log( "Received unknown addon message: " .. args[1] )
+	end
+end
+
+function events:PLAYER_REGEN_DISABLED( ... )
+	for _, rotation in next, _rotations do
+		rotation:AdvanceRotation()
+	end
 end
 
 function events:COMBAT_LOG_EVENT_UNFILTERED( ... )
@@ -130,7 +154,7 @@ function events:SPELL_CAST_SUCCESS( timestamp, event, hideCaster,
 	if ( not spellInfo ) then
 		return end
 
-	addon:Log( "DEBUG", "%q casted %s:%s", sourceName, spellID, spellName )
+	addon:Log( "%q casted %s:%s", sourceName, spellID, spellName )
 
 	for _, rotation in next, _rotations do
 		rotation:StartCooldown( sourceGUID, spellInfo )
@@ -142,11 +166,13 @@ function events:SPELL_INTERRUPT( timestamp, event, hideCaster,
 								 destGUID, destName, destFlags, destRaidFlags,
 								 spellID, spellName, spellSchool,
 								 extraSpellID, extraSpellName, extraSchool )
+
+	addon:Log( "%q interrupted %q with %s:%s", sourceGUID, destGUID, spellID, spellName )
+
 	local spellInfo = addon.Spells:GetSpellByID( spellID );
 	if ( not spellInfo ) then
+		addon:Log( "No spell info for %s:%s", spellID, spellName )
 		return end
-
-	addon:Log( "DEBUG", "%q interrupted %q with %s:%s", sourceGUID, destGUID, spellID, spellName )
 
 	for _, rotation in next, _rotations do
 		if ( rotation:GetTarget() == destGUID ) then
@@ -160,9 +186,9 @@ function events:UNIT_DIED( timestamp, event, hideCaster,
 						   destGUID, destName, destFlags, destRaidFlags,
 						   recapID, unconsciousOnDeath )
 	if ( unconsciousOnDeath ) then
-		addon:Log( "DEBUG", "%q is unconscious", destGUID )
+		addon:Log( "%q is unconscious", destGUID )
 	else
-		addon:Log( "DEBUG", "%q died", destGUID )
+		addon:Log( "%q died", destGUID )
 
 		for _, rotation in next, _rotations do
 			if ( rotation:GetTarget() == destGUID ) then
@@ -239,6 +265,38 @@ function addon:RemoveRotation( rotationID )
 		return end
 
 	rotation:Reset()
+end
+
+-- ----------------------------------------------------
+
+function addon:ShowTextAlert( msg, holdTime, fadeTime )
+	_textWarning:ShowText( msg, holdTime, fadeTime )
+end
+
+-- ----------------------------------------------------
+
+function addon:SyncRotations()
+	for id, _ in next, _rotations do
+		addon:SyncRotation( id )
+	end
+end
+
+function addon:SyncRotation( rotationID )
+	local rotation = _rotations[rotationID]
+	if ( not rotation ) then
+		return end
+
+	local msg = "ROTATION;" .. tostring( id ) .. ";" .. table.concat( rotation:GetPlayerGUIDs(), ";" )
+	SendAddonMessage( ADDON_NAME, msg, "RAID" )
+end
+
+function addon:SyncTarget( rotationID )
+	local rotation = _rotations[rotationID]
+	if ( not rotation ) then
+		return end
+
+	local msg = "TARGET;" .. tostring( rotationID ) .. ";" .. rotation:GetTarget()
+	SendAddonMessage( ADDON_NAME, msg, "RAID" )
 end
 
 -- ----------------------------------------------------

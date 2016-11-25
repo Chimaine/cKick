@@ -17,24 +17,35 @@ function addon:CreatePlayerDB()
 	local function SetPrimarySpellInfo( info )
 		local primarySpell = addon.Spells:GetPrimarySpell( info.Class, info.Spec )
 		if ( primarySpell ) then
-			addon:Log( "DEBUG", "Primary spell for %s,%s : %s", info.Class, info.Spec, primarySpell.ID )
+			addon:Log( "Primary spell for %s,%s : %s", info.Class, info.Spec, primarySpell.ID )
 
 			info["PrimarySpell"] = primarySpell
 			info["PrimaryCooldown"] = primarySpell.DefaultCooldown
+		else
+			addon:Log( "No primary spell for %s,%s", info.Class, info.Spec )
+
+			info["PrimarySpell"] = nil
+			info["PrimaryCooldown"] = nil
 		end
 	end
 
-	local function RetrievePlayerInfo( guid )
+	local function GetPlayerNameAndClass( guid )
 		local _, classID, _, _, _, name, realm = GetPlayerInfoByGUID( guid )
 
 		if ( realm and ( string.len( realm ) > 0 ) ) then
 			name = name .. "-" .. realm
 		end
 
+		return name, classID
+	end
+
+	local function RetrievePlayerInfo( guid )
+		local name, classID = GetPlayerNameAndClass( guid )
 		local info = {
 			["GUID"] = guid,
 			["Name"] = name,
 			["Class"] = classID,
+			["Spec"] = 0,
 			["Inspected"] = false,
 		}
 
@@ -47,7 +58,7 @@ function addon:CreatePlayerDB()
 		if ( info.Inspected and ( not reset ) ) then
 			return end
 
-		addon:Log( "DEBUG", "Requesting inspect for %q", info.GUID )
+		addon:Log( "Requesting inspect for %q", info.GUID )
 
 		info.Inspected = false
 
@@ -75,6 +86,15 @@ function addon:CreatePlayerDB()
 		return info
 	end
 
+	function instance:GetPlayerInfoByGUID( guid )
+		local info = _players[guid]
+		if ( info ) then
+			return info end
+
+		local name = GetPlayerNameAndClass( guid )
+		return instance:GetPlayerInfo( name )
+	end
+
 	function instance:StartPlayerInfoUpdate( unitID, reset )
 		local guid = UnitGUID( unitID )
 		if ( not guid )	then
@@ -97,18 +117,20 @@ function addon:CreatePlayerDB()
 		local info = _players[guid]
 		if ( not info ) then
 			return end
+		if ( info.Inspected ) then
+			return end
 
 		local specID = GetInspectSpecialization( info.Name )
-		addon:Log( "DEBUG", "%q spec: %s", guid, specID )
+		addon:Log( "%q spec: %s", guid, specID )
+
+		info.Spec = specID
+		SetPrimarySpellInfo( info )
 
 		if ( specID == 0 ) then
 			addon:Log( "WARN", "GetInspectSpecialization failed for %q:%q", guid, info.Name )
 			return end
-
-		info.Spec = specID
-
-		SetPrimarySpellInfo( info )
 		info.Inspected = true
+		return true
 	end
 
 	function instance:RemovePlayer( guid )

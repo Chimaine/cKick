@@ -35,19 +35,32 @@ end
 
 RegisterSpell( "DEATHKNIGHT",  47528, 4,  15, false ) -- Mindfreeze
 RegisterSpell( "DEATHKNIGHT",  47476, 3, 120,  true, { 250 } ) -- Strangulate (Blood/Honor)
+
 RegisterSpell( "DEMONHUNTER", 183752, 3,  15, false ) -- Consume Magic
+
 RegisterSpell(       "DRUID", 106839, 4,  15, false, { 103, 104 } ) -- Skull Bash (Feral/Guardian)
 RegisterSpell(       "DRUID",  78675, 5,  60,  true, { 102 } ) -- Solar Beam (Balance)
+RegisterSpell(       "DRUID",  93985, 4,  15,  true, {} ) -- Skull Bash (Effect ID?)
+RegisterSpell(       "DRUID", 221514, 4,  15,  true, {} ) -- Skull Bash (Effect ID?)
+
 RegisterSpell(      "HUNTER", 147362, 3,  24, false ) -- Counter Shot
+
 RegisterSpell(        "MAGE",   2139, 6,  24, false ) -- Counterspell
+
 RegisterSpell(       "ROGUE",   1766, 5,  15, false ) -- Kick
+
 RegisterSpell(     "PALADIN",  96231, 4,  15, false, { 66, 70 } ) -- Rebuke (Protection/Retribution)
 RegisterSpell(     "PALADIN",  31935, 3,  15, false, { 65 } ) -- Avenger's Shield (Protection)
+
 RegisterSpell(      "PRIEST",  15487, 3,  45,  true, { 258 } ) -- Silence (Shadow)
+
 RegisterSpell(        "MONK", 116705, 4,  15, false ) -- Spear Hand Strike
+
 RegisterSpell(      "SHAMAN",  57994, 3,  12, false ) -- Wind Shear
+
 RegisterSpell(     "WARLOCK",  19647, 6,  24,  true ) -- Spell Lock (Felhunter)
 RegisterSpell(     "WARLOCK", 115781, 6,  24,  true ) -- Optical Blast (Observer)
+
 RegisterSpell(     "WARRIOR",   6552, 4,  15, false ) -- Pummel
 
 -- ----------------------------------------------------
@@ -76,11 +89,13 @@ end
 
 function addon.Spells:GetPrimarySpell( classID, specID )
 	for k, spell in pairs( _spells.ByClass[classID] ) do
-		if ( specID and spell.SpecIDs ) then
-			if ( contains( spell.SpecIDs, specID ) ) then
-				return spell end
-		elseif ( not spell.SpecIDs ) then
-			return spell
+		if ( not spell.Ignore ) then
+			if ( specID and spell.SpecIDs ) then
+				if ( contains( spell.SpecIDs, specID ) ) then
+					return spell end
+			elseif ( not spell.SpecIDs ) then
+				return spell
+			end
 		end
 	end
 end

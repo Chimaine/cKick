@@ -10,6 +10,7 @@ local ADDON_NAME, addon = ...
 
 function addon:CreateRotation( id )
 	local instance = {}
+	local _playerGUID = UnitGUID( "player" )
 	local _gui = addon:CreateGroup( id )
 	local _target
 	local _players
@@ -37,6 +38,10 @@ function addon:CreateRotation( id )
 		return _target
 	end
 
+	function instance:GetCurrentPlayer()
+		return _nextPlayer
+	end
+
 	-- Returns the first player that is off cooldown
 	-- or the player with the smallest remaining cooldown.
 	function instance:GetNextPlayer()
@@ -55,8 +60,12 @@ function addon:CreateRotation( id )
 		return result
 	end
 
-	function instance:GetPlayers()
-		return _players
+	function instance:GetPlayerGUIDs()
+		local result = {}
+		for _, player in next, _players do
+			table.insert( result, player.Info.GUID )
+		end
+		return result
 	end
 
 	function instance:SetTarget( guid )
@@ -92,6 +101,7 @@ function addon:CreateRotation( id )
 	end
 
 	function instance:StartLockout( duration )
+		addon:Log( "Starting lockout of " .. duration )
 		_gui:StartLockout( duration )
 	end
 
@@ -99,11 +109,11 @@ function addon:CreateRotation( id )
 		local player = GetPlayerByGUID( guid )
 		if ( not player ) then
 			return end
-		if ( spellInfo ~= player.Info.PrimarySpell ) then
-			addon:Log( "DEBUG", "%q used a secondary spell", player.Info.Name )
+		if ( player.Info.PrimarySpell ) and ( spellInfo ~= player.Info.PrimarySpell ) then
+			addon:Log( "%q used a secondary spell", player.Info.Name )
 			return end
 
-		addon:Log( "DEBUG", "Starting cooldown for %q: %s", player.Info.Name, player.Info.PrimaryCooldown )
+		addon:Log( "Starting cooldown for %q: %s", player.Info.Name, player.Info.PrimaryCooldown )
 
 		player.Bar:Start( player.Info.PrimaryCooldown, true )
 		instance:AdvanceRotation()
@@ -121,9 +131,13 @@ function addon:CreateRotation( id )
 
 		_nextPlayer.Bar:ShowArrows()
 
-		addon:Log( "DEBUG", "Advancing rotation from %q to %q",
+		addon:Log( "Advancing rotation from %q to %q",
 			lastPlayer and lastPlayer.Info.Name or "None",
 			_nextPlayer and _nextPlayer.Info.Name or "None" )
+
+		if ( _nextPlayer.Info.GUID == _playerGUID ) and ( InCombatLockdown() ) then
+			addon:ShowTextAlert( "You are next to interrupt!", 3, 1 )
+		end
 	end
 
 	function instance:Reset()

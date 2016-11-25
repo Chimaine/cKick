@@ -9,7 +9,7 @@ local ADDON_NAME, addon = ...
 -- ----------------------------------------------------
 
 local LSM = LibStub( "LibSharedMedia-3.0" )
-LSM:Register( "statusbar", "darkborder", "Interface\\Addons\\cKick\\media\\darkborder.tga" ) 
+LSM:Register( "statusbar", "darkborder", "Interface\\Addons\\cKick\\media\\darkborder.tga" )
 
 -- ----------------------------------------------------
 
@@ -27,7 +27,7 @@ end
 
 local function GetGroupPosition( id )
 	local point = addon.DB.Points[id] or { "CENTER", UIParent, "CENTER", 0, 0 }
-	return point[1], UIParent, point[3], point[4], point[5], point[6] 
+	return point[1], UIParent, point[3], point[4], point[5], point[6]
 end
 
 local function SaveGroupPosition( id, point )
@@ -40,9 +40,9 @@ local function CreateAnchor( id )
 
 	local _id = id
 
-	local anchor = CreateFrame( "Frame", nil, UIParent )	
+	local anchor = CreateFrame( "Frame", "cKickGroupAnchor" .. id, UIParent )
 	anchor:SetWidth( 200 )
-	anchor:SetHeight( 18 )	
+	anchor:SetHeight( 18 )
 	anchor:SetScale( 1 )
 	anchor:SetAlpha( 1 )
 
@@ -50,7 +50,7 @@ local function CreateAnchor( id )
 	anchor:EnableMouse( 1 )
 	anchor:SetUserPlaced( 0 )
 	anchor:SetClampedToScreen( 1 )
-	
+
 	anchor:SetPoint( GetGroupPosition( _id ) )
 
 	anchor:SetScript( "OnMouseDown", function()
@@ -64,7 +64,7 @@ local function CreateAnchor( id )
 	local label = anchor:CreateFontString( nil, "ARTWORK", "GameFontHighlightSmallOutline" )
 	label:SetPoint( "CENTER", anchor, 0, 0 )
 	label:SetFont( LSM:Fetch( "font", "Friz Quadrata TT" ), 11, select( 3, label:GetFont() ) )
-	
+
 	function anchor:SetLabel( text )
 		label:SetText( text )
 	end
@@ -74,7 +74,7 @@ end
 
 local function CreateBar( width, height )
 	local instance = {}
-		
+
 	local _enabled = true
 	local _duration = 0
 	local _remaining = 0
@@ -82,7 +82,7 @@ local function CreateBar( width, height )
 	local _isRunning = false
 	local _hideOnStop = false
 
-	local _bar = CreateFrame( "Frame", nil, UIParent )	
+	local _bar = CreateFrame( "Frame", nil, UIParent )
 	_bar:SetWidth( width )
 	_bar:SetHeight( height )
 	_bar:SetScale( 1 )
@@ -91,22 +91,22 @@ local function CreateBar( width, height )
 	local _statusbar = CreateFrame( "StatusBar", nil, _bar )
 	_statusbar:SetAllPoints()
 	_statusbar:SetStatusBarTexture( LSM:Fetch( "statusbar", "darkborder" ) )
-	
+
 	local _bg = _statusbar:CreateTexture( nil, "BACKGROUND" )
 	_bg:SetAllPoints()
 	_bg:SetTexture( LSM:Fetch( "statusbar", "darkborder" ) )
 	_bg:SetVertexColor( 0.5, 0.5, 0.5, 0.5 )
-	
+
 	local _timer = _statusbar:CreateFontString( nil, "ARTWORK", "GameFontHighlightSmallOutline" )
 	_timer:SetPoint( "RIGHT", _statusbar, -2, 0 )
-	
+
 	local _label = _statusbar:CreateFontString( nil, "ARTWORK", "GameFontHighlightSmallOutline" )
 	_label:SetPoint( "LEFT", _statusbar, 2, 0 )
 	_label:SetPoint( "RIGHT", _statusbar, -2, 0 )
 	_label:SetTextColor( 1, 1, 1, 1 )
 	_label:SetJustifyH( "CENTER" )
 	_label:SetJustifyV( "MIDDLE" )
-	
+
 	local _arrowLeft = _statusbar:CreateTexture( nil, "OVERLAY" )
 	_arrowLeft:SetPoint( "RIGHT", _statusbar, "LEFT", 0, 0 )
 	_arrowLeft:SetTexture( "Interface\\Addons\\cKick\\media\\arrowLeft.tga" )
@@ -114,7 +114,7 @@ local function CreateBar( width, height )
 	_arrowLeft:SetWidth( height )
 	_arrowLeft:SetHeight( height )
 	_arrowLeft:Hide()
-	
+
 	local _arrowRight = _statusbar:CreateTexture( nil, "OVERLAY" )
 	_arrowRight:SetPoint( "LEFT", _statusbar, "RIGHT", 0, 0 )
 	_arrowRight:SetTexture( "Interface\\Addons\\cKick\\media\\arrowRight.tga" )
@@ -124,7 +124,7 @@ local function CreateBar( width, height )
 	_arrowRight:Hide()
 
 	-- ----------------------------------------------------
-	
+
 	local function OnUpdate()
 		local t = GetTime()
 		if ( t >= _expires ) then
@@ -136,7 +136,7 @@ local function CreateBar( width, height )
 			_timer:SetFormattedText( SecondsToTimeDetail( _remaining ) )
 		end
 	end
-	
+
 	local function OnUpdateInverted()
 		local t = GetTime()
 		if ( t >= _expires ) then
@@ -148,7 +148,7 @@ local function CreateBar( width, height )
 			_timer:SetFormattedText( SecondsToTimeDetail( _remaining ) )
 		end
 	end
-	
+
 	-- ----------------------------------------------------
 
 	function instance:GetFrame()
@@ -166,16 +166,16 @@ local function CreateBar( width, height )
 	function instance:Remaining()
 		return _remaining
 	end
-	
+
 	function instance:Start( duration, invert, hideOnStop )
 		if ( not _enabled ) then
 			error( "Bar is not enabled" ) end
-		
+
 		_duration = duration
 		_remaining = duration
 		_expires = GetTime() + duration
 		_hideOnStop = hideOnStop or false
-		
+
 		_statusbar:SetMinMaxValues( 0, duration )
 
 		if ( invert ) then
@@ -185,11 +185,11 @@ local function CreateBar( width, height )
 		_bar:SetScript( "OnUpdate", ( invert and OnUpdateInverted ) or OnUpdate )
 		_bar:Show()
 
-		_timer:Show()		
-		
+		_timer:Show()
+
 		_isRunning = true
 	end
-	
+
 	function instance:Stop( hide )
 		if ( not _enabled ) then
 			error( "Bar is not enabled" ) end
@@ -197,23 +197,23 @@ local function CreateBar( width, height )
 		if ( hide or _hideOnStop ) then
 			bar:Hide()
 		end
-		
+
 		_duration = 0
 		_remaining = 0
 		_expires = 0
 		_hideOnStop = false
-		
+
 		_bar:SetScript( "OnUpdate", nil )
 		_timer:Hide()
-		
+
 		_isRunning = false
 	end
 
 	function instance:SetEnabled( flag )
 		_enabled = flag
-		if ( _enabled ) then 
+		if ( _enabled ) then
 			_bar:Show()
-		else 
+		else
 			_bar:Hide()
 			instance:HideArrows()
 		end
@@ -222,23 +222,23 @@ local function CreateBar( width, height )
 	function instance:SetLabel( text )
 		_label:SetText( text )
 	end
-	
+
 	function instance:SetMinMaxValues( min, max )
 		_statusbar:SetMinMaxValues( min, max )
 	end
-	
+
 	function instance:SetValue( value )
 		_statusbar:SetValue( value )
 	end
-	
+
 	function instance:SetTextStyle( font, size, flags )
 		local curFont, curSize, curFlags = _label:GetFont()
 		_label:SetFont( font or curFont, size or curSize, flags or curFlags )
-		
+
 		curFont, curSize, curFlags = _timer:GetFont()
 		_timer:SetFont( font or curFont, size or curSize, flags or curFlags )
 	end
-	
+
 	function instance:SetColor( r, g, b, a )
 		_statusbar:SetStatusBarColor( r, g, b, a )
 	end
@@ -250,12 +250,12 @@ local function CreateBar( width, height )
 	function instance:SetPoint( from, relative, to, x, y )
 		_bar:SetPoint( from, relative, to, x, y )
 	end
-	
+
 	function instance:ShowArrows()
 		_arrowLeft:Show()
 		_arrowRight:Show()
 	end
-	
+
 	function instance:HideArrows()
 		_arrowLeft:Hide()
 		_arrowRight:Hide()
@@ -264,7 +264,7 @@ local function CreateBar( width, height )
 	function instance:SetHeight( height )
 		_bar:SetHeight( height )
 	end
-	
+
 	return instance
 end
 
@@ -279,7 +279,7 @@ local function CreateLockoutBar( parent )
 	bar:SetValue( 0 )
 
 	bar:SetLabel( "Lockout" )
-	
+
 	return bar
 end
 
@@ -317,7 +317,7 @@ function addon:CreateGroup( id )
 		bar:SetParent( _anchor )
 		bar:SetPoint( "TOP", _anchor, "BOTTOM", 0, -spacing )
 		bar:SetTextStyle( LSM:Fetch( "font", "Friz Quadrata TT" ), 11 )
-		
+
 		bar:SetMinMaxValues( 0, 1 )
 		bar:SetValue( 1 )
 
@@ -332,7 +332,7 @@ function addon:CreateGroup( id )
 				spacing = spacing + 18 + 1
 			end
 			bar:SetPoint( "TOP", _anchor, "BOTTOM", 0, -spacing )
-		end 
+		end
 	end
 
 	function instance:HideAllBars()
@@ -352,4 +352,41 @@ function addon:CreateGroup( id )
 	instance:ShowLockoutBar( false )
 
 	return instance
+end
+
+function addon:CreateWarningText()
+	if ( cKickTextWarning ) then
+		error() end
+
+	local frame = CreateFrame( "Frame", "cKickTextWarning", UIParent )
+	frame:Hide()
+	frame:SetFrameStrata( "HIGH" )
+	frame:SetToplevel( true )
+	frame:SetWidth( 512 )
+	frame:SetHeight( 35 )
+	frame:SetPoint( "BOTTOM", "SpellActivationOverlayFrame", "TOP", 0, 100 )
+
+	local fontStr = frame:CreateFontString( nil, "ARTWORK", "GameFontNormalHuge" )
+	fontStr:SetPoint( "TOP" )
+	fontStr:SetWidth( 800 )
+	fontStr:SetJustifyH( "CENTER" )
+	--text:SetJustifyV( "MIDDLE" )
+
+	local fadeAnimGrp = frame:CreateAnimationGroup()
+	local fadeAnim = fadeAnimGrp:CreateAnimation( "Alpha" )
+	fadeAnim:SetDuration( 2 )
+	fadeAnim:SetFromAlpha( 1 )
+	fadeAnim:SetToAlpha( 0 )
+	fadeAnim:SetScript( "OnFinished", function() frame:Hide() end )
+
+	function frame:ShowText( text, holdTime, fadeTime )
+		fontStr:SetText( text )
+		fadeAnim:SetStartDelay( holdTime )
+		fadeAnim:SetDuration( fadeTime )
+		frame:Show()
+		fadeAnimGrp:Play()
+		PlaySound( "RaidWarning" )
+	end
+
+	return frame
 end

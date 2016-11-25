@@ -13,24 +13,20 @@ addon.Version = GetAddOnMetadata( ADDON_NAME, "Version" )
 
 -- ----------------------------------------------------
 
-local logLevels = { ["ALL"] = 1, ["TRACE"] = 2, ["DEBUG"] = 3, ["INFO"] = 4, ["WARN"] = 5, ["ERROR"] = 6, ["NONE"] = 7 }
+addon.EnableLog = true
 
-addon.EnableLog = false
-addon.LogLevel = "ALL"
-
-function addon:Log( level, msg, ... )
+function addon:Log( msg, ... )
 	if ( not addon.EnableLog ) then
 		return end
 
-	local intLevel = logLevels[level]
-	local maxLevel = logLevels[addon.LogLevel]
-
-	if ( intLevel < maxLevel ) then
-		return end
-
-	DEFAULT_CHAT_FRAME:AddMessage( "[" .. self.Title .. "][" .. level .. "] " .. string.format( msg, ... ) )
+	addon:Print( msg, ... )
 end
 
 function addon:Print( msg, ... )
-	DEFAULT_CHAT_FRAME:AddMessage( "[" .. self.Title .. "] " .. string.format( msg, ... ) )
+	local args = {}
+	for n = 1, select( '#', ... ) do
+		args[n] = tostring( select( n, ... ) )
+	end
+
+	DEFAULT_CHAT_FRAME:AddMessage( "[" .. self.Title .. "] " .. string.format( msg, unpack( args ) ) )
 end
