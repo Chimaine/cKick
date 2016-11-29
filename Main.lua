@@ -36,15 +36,17 @@ local function OnSlashCmd( ... )
 	if ( arg1 == '' ) then
 		addon:Print( "/ckick rotation <RotationID> players <UnitID 1> ..." )
 		addon:Print( "/ckick rotation <RotationID> target [<UnitID>]" )
-		addon:Print( "/ckick rotation <RotationID> restart " )
-		addon:Print( "/ckick rotation <RotationID> remove " )
+		addon:Print( "/ckick rotation <RotationID> restart" )
+		addon:Print( "/ckick rotation <RotationID> remove" )
+		addon:Print( "/ckick sync [<RotationID>]" )
+		addon:Print( "/ckick sync <RotationID> target" )
 		addon:Print( "/ckick log <enable|disable>" )
 		return
 	elseif ( arg1 == "rotation" ) then
 		if ( arg3 == "players" ) then
-			addon:SetPlayers( arg2, select( 4, ... ) ) return
+			addon:SetPlayersByUnitID( arg2, select( 4, ... ) ) return
 		elseif ( arg3 == "target" ) then
-			addon:SetTarget( arg2, select( 4, ... ) ) return
+			addon:SetTargetByUnitID( arg2, select( 4, ... ) ) return
 		elseif ( arg3 == "restart" ) then
 			addon:RestartRotation( arg2 ) return
 		elseif ( arg3 == "remove" ) then
@@ -53,7 +55,15 @@ local function OnSlashCmd( ... )
 			addon:Print( "Unknown command for %q: %q", arg1, arg3 )
 		end
 	elseif ( arg1 == "sync" ) then
-		addon:SyncRotations()
+		if ( arg2 ) then
+			if ( arg3 == "target" ) then
+				addon:SyncTarget( arg2 )
+			else
+				addon:SyncRotation( arg2 )
+			end
+		else
+			addon:SyncRotations()
+		end
 	elseif ( arg1 == "log" ) then
 		if ( arg2 == "enable" ) then
 			addon.EnableLog = true return
@@ -121,6 +131,7 @@ function events:CHAT_MSG_ADDON( prefix, msg, channel, sender )
 	local args = { strsplit( ";", msg ) }
 	if ( args[1] == "ROTATION" ) then
 		addon:Log( "Received ROTATION sync message" )
+		addon:SetPlayersByGUID( args[2], unpack( args, 3 ) )
 	elseif ( args[1] == "TARGET" ) then
 		addon:Log( "Received TARGET sync message" )
 	else
@@ -200,29 +211,51 @@ end
 
 -- ----------------------------------------------------
 
-function addon:SetTarget( rotationID, unitID )
+local function GetRotation( rotationID, create )
+	local rotation = _rotations[rotationID]
+	if ( not rotation and create ) then
+		rotation = addon:CreateRotation( rotationID )
+		rotation:GetGUI():SetLabel( "Rotation " .. rotationID )
+		_rotations[rotationID] = rotation
+	end
+
+	return rotation
+end
+
+function addon:SetTargetByUnitID( rotationID, unitID )
 	rotationID = tonumber( rotationID )
 	if ( type( rotationID ) ~= "number" ) then
 		addon:Print( "Usage: rotation set target <RotationID>" ) return end
 
-	local rotation = _rotations[rotationID]
+	local rotation = GetRotation( rotationID )
 	if ( not rotation ) then
 		return end
 
 	rotation:SetTarget( UnitGUID( unitID or "target" ) )
 end
 
-function addon:SetPlayers( rotationID, ... )
+function addon:SetTargetByGUID( rotationID, guid )
+	rotationID = tonumber( rotationID )
+	if ( type( rotationID ) ~= "number" ) then
+		addon:Log( "Failed to sync target: Invalid rotation ID: %q", rotationID ) return end
+
+	local rotation = GetRotation( rotationID )
+	if ( not rotation ) then
+		return end
+
+	if ( guid == "nil" ) then
+		guid = nil
+	end
+
+	rotation:SetTarget( guid )
+end
+
+function addon:SetPlayersByUnitID( rotationID, ... )
 	rotationID = tonumber( rotationID )
 	if ( type( rotationID ) ~= "number" ) then
 		addon:Print( "Usage: rotation set players <RotationID> <UnitID 1> ..." ) return end
 
-	local rotation = _rotations[rotationID]
-	if ( not rotation ) then
-		rotation = addon:CreateRotation( rotationID )
-		rotation:GetGUI():SetLabel( "Rotation " .. rotationID )
-		_rotations[rotationID] = rotation
-	end
+	local rotation = GetRotation( rotationID, true )
 
 	local playerInfos = {}
 	for n = 1, select( '#', ... ) do
@@ -239,6 +272,30 @@ function addon:SetPlayers( rotationID, ... )
 	if ( #playerInfos < 1 ) then
 		addon:Print( "Failed to create rotation: Must specify at least one unit ID", unitID )
 		addon:Print( "Usage: rotation set players <RotationID> <Player1> ..." ) return end
+
+	rotation:Reset()
+	rotation:SetPlayers( playerInfos )
+	rotation:GetGUI():Show()
+end
+
+function addon:SetPlayersByGUID( rotationID, ... )
+	rotationID = tonumber( rotationID )
+	if ( type( rotationID ) ~= "number" ) then
+		addon:Log( "Failed to sync rotation: Invalid rotation ID: %q", rotationID ) return end
+
+	local rotation = GetRotation( rotationID, true )
+
+	local playerInfos = {}
+	for n = 1, select( '#', ... ) do
+		local guid = select( n, ... )
+		local info = _players:GetPlayerInfoByGUID( guid )
+
+		if ( not info ) then
+			addon:Log( "Failed to sync rotation: Unable to add GUID %q to rotation", guid )
+			return end
+
+		table.insert( playerInfos, info )
+	end
 
 	rotation:Reset()
 	rotation:SetPlayers( playerInfos )
@@ -280,24 +337,33 @@ end
 function addon:SyncRotations()
 	for id, _ in next, _rotations do
 		addon:SyncRotation( id )
+		addon:SyncTarget( id )
 	end
 end
 
 function addon:SyncRotation( rotationID )
-	local rotation = _rotations[rotationID]
+	rotationID = tonumber( rotationID )
+	if ( type( rotationID ) ~= "number" ) then
+		addon:Print( "Usage: sync <RotationID>" ) return end
+
+	local rotation = GetRotation( rotationID )
 	if ( not rotation ) then
 		return end
 
-	local msg = "ROTATION;" .. tostring( id ) .. ";" .. table.concat( rotation:GetPlayerGUIDs(), ";" )
+	local msg = "ROTATION;" .. tostring( rotationID ) .. ";" .. table.concat( rotation:GetPlayerGUIDs(), ";" )
 	SendAddonMessage( ADDON_NAME, msg, "RAID" )
 end
 
 function addon:SyncTarget( rotationID )
-	local rotation = _rotations[rotationID]
+	rotationID = tonumber( rotationID )
+	if ( type( rotationID ) ~= "number" ) then
+		addon:Print( "Usage: sync <RotationID> target" ) return end
+
+	local rotation = GetRotation( rotationID )
 	if ( not rotation ) then
 		return end
 
-	local msg = "TARGET;" .. tostring( rotationID ) .. ";" .. rotation:GetTarget()
+	local msg = "TARGET;" .. tostring( rotationID ) .. ";" .. tostring( rotation:GetTarget() )
 	SendAddonMessage( ADDON_NAME, msg, "RAID" )
 end
 
