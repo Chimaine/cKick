@@ -32,25 +32,25 @@ end )
 local function OnSlashCmd( ... )
 	addon:Log( "Slash Command: " .. table.concat( { ... }, ", " ) )
 
-	local arg1, arg2 = ...
+	local arg1, arg2, arg3 = ...
 	if ( arg1 == '' ) then
-		addon:Print( "/ckick rotation players <RotationID> <UnitID 1> ..." )
-		addon:Print( "/ckick rotation target <RotationID> [<UnitID>]" )
-		addon:Print( "/ckick rotation restart <RotationID>" )
-		addon:Print( "/ckick rotation remove <RotationID>" )
+		addon:Print( "/ckick rotation <RotationID> players <UnitID 1> ..." )
+		addon:Print( "/ckick rotation <RotationID> target [<UnitID>]" )
+		addon:Print( "/ckick rotation <RotationID> restart " )
+		addon:Print( "/ckick rotation <RotationID> remove " )
 		addon:Print( "/ckick log <enable|disable>" )
 		return
 	elseif ( arg1 == "rotation" ) then
-		if ( arg2 == "players" ) then
-			addon:SetPlayers( select( 3, ... ) ) return
-		elseif ( arg2 == "target" ) then
-			addon:SetTarget( select( 3, ... ) ) return
-		elseif ( arg2 == "restart" ) then
-			addon:RestartRotation( arg3 ) return
-		elseif ( arg2 == "remove" ) then
-			addon:RemoveRotation( arg3 ) return
+		if ( arg3 == "players" ) then
+			addon:SetPlayers( arg2, select( 4, ... ) ) return
+		elseif ( arg3 == "target" ) then
+			addon:SetTarget( arg2, select( 4, ... ) ) return
+		elseif ( arg3 == "restart" ) then
+			addon:RestartRotation( arg2 ) return
+		elseif ( arg3 == "remove" ) then
+			addon:RemoveRotation( arg2 ) return
 		else
-			addon:Print( "Unknown argument for %q: %q", arg1, arg2 )
+			addon:Print( "Unknown command for %q: %q", arg1, arg3 )
 		end
 	elseif ( arg1 == "sync" ) then
 		addon:SyncRotations()
@@ -230,15 +230,17 @@ function addon:SetPlayers( rotationID, ... )
 		local info = _players:GetPlayerInfo( unitID )
 
 		if ( not info ) then
-			addon:Print( "Unable to add unit ID %q to rotation", unitID )
+			addon:Print( "Failed to create rotation: Unable to add unit ID %q to rotation", unitID )
 			return end
 
 		table.insert( playerInfos, info )
 	end
 
 	if ( #playerInfos < 1 ) then
+		addon:Print( "Failed to create rotation: Must specify at least one unit ID", unitID )
 		addon:Print( "Usage: rotation set players <RotationID> <Player1> ..." ) return end
 
+	rotation:Reset()
 	rotation:SetPlayers( playerInfos )
 	rotation:GetGUI():Show()
 end
