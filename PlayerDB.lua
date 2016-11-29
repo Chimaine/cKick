@@ -145,5 +145,7 @@ function addon:CreatePlayerDB()
 		return _players
 	end
 
+	instance:GetPlayerInfo( "player" )
+
 	return instance
 end
