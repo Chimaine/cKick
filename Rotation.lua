@@ -13,7 +13,7 @@ function addon:CreateRotation( id )
 	local _playerGUID = UnitGUID( "player" )
 	local _gui = addon:CreateGroup( id )
 	local _target
-	local _players
+	local _players = {}
 	local _nextPlayer
 
 	-- ----------------------------------------------------
@@ -43,10 +43,11 @@ function addon:CreateRotation( id )
 	end
 
 	-- Returns the first player that is off cooldown
-	-- or the player with the smallest remaining cooldown.
+	-- or the player with the smallest remaining cooldown
+	-- or the first player in the rotation
 	function instance:GetNextPlayer()
 		local result, cd = nil, math.huge;
-		for i, player in ipairs( _players ) do
+		for i, player in next, _players do
 			if ( player.Info.PrimarySpell ) then
 				local bar = player.Bar
 				if ( not bar.IsRunning() ) then
@@ -54,10 +55,12 @@ function addon:CreateRotation( id )
 				elseif ( bar.Remaining() < cd ) then
 					result, cd = player, bar.Remaining()
 				end
+			else
+				addon:Log( "%q has no primary spell", player.Info.Name )
 			end
 		end
 
-		return result
+		return result or _players[1]
 	end
 
 	function instance:GetPlayerGUIDs()
@@ -74,9 +77,6 @@ function addon:CreateRotation( id )
 	end
 
 	function instance:SetPlayers( players )
-		if ( #players < 1 ) then
-			error( "Cannot create rotation without players" ) end
-
 		_players = {}
 		_nextPlayer = nil
 
@@ -115,20 +115,21 @@ function addon:CreateRotation( id )
 
 		addon:Log( "Starting cooldown for %q: %s", player.Info.Name, player.Info.PrimaryCooldown )
 
-		player.Bar:Start( player.Info.PrimaryCooldown, true )
+		player.Bar:Start( spellInfo.DefaultCooldown, true )
 		instance:AdvanceRotation()
 	end
 
 	function instance:AdvanceRotation()
 		local lastPlayer = _nextPlayer
-		if ( lastPlayer ) then
-			lastPlayer.Bar:HideArrows()
-		end
+		--if ( lastPlayer ) then
+		--	lastPlayer.Bar:HideArrows()
+		--end
+		_gui:HideAllArrows()
 
-		_nextPlayer = instance:GetNextPlayer()
-		if ( not _nextPlayer ) and ( not lastPlayer ) then
+		if ( #_players < 1 ) then
 			return end
 
+		_nextPlayer = instance:GetNextPlayer()
 		_nextPlayer.Bar:ShowArrows()
 
 		addon:Log( "Advancing rotation from %q to %q",
@@ -145,6 +146,7 @@ function addon:CreateRotation( id )
 		_nextPlayer = nil
 		instance:SetTarget( nil )
 		_gui:HideAllBars()
+		_gui:HideAllArrows()
 		_gui:Hide()
 	end
 

@@ -336,8 +336,14 @@ function addon:CreateGroup( id )
 	end
 
 	function instance:HideAllBars()
-		for i, bar in ipairs( _bars ) do
+		for i, bar in next, _bars do
 			bar:SetEnabled( false )
+		end
+	end
+
+	function instance:HideAllArrows()
+		for i, bar in next, _bars do
+			bar:HideArrows()
 		end
 	end
 
