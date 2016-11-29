@@ -134,6 +134,7 @@ function events:CHAT_MSG_ADDON( prefix, msg, channel, sender )
 		addon:SetPlayersByGUID( args[2], unpack( args, 3 ) )
 	elseif ( args[1] == "TARGET" ) then
 		addon:Log( "Received TARGET sync message" )
+		addon:SetTargetByGUID( args[2], args[3] )
 	else
 		addon:Log( "Received unknown addon message: " .. args[1] )
 	end
