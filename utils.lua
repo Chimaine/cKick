@@ -13,7 +13,7 @@ addon.Version = GetAddOnMetadata( ADDON_NAME, "Version" )
 
 -- ----------------------------------------------------
 
-addon.EnableLog = true
+addon.EnableLog = false
 
 function addon:Log( msg, ... )
 	if ( not addon.EnableLog ) then
