@@ -8,6 +8,29 @@ local ADDON_NAME, addon = ...
 
 -- ----------------------------------------------------
 
+local ROLE_KICKER_ORDER = {
+	["NONE"] = 0,
+	["TANK"] = 1,
+	["DAMAGER"] = 2,
+	["HEALER"] = 3,
+}
+
+local function ComparePlayers( a, b )
+	local result = sign( ROLE_KICK_ORDER[a.Role] < ROLE_KICK_ORDER[b.Role] )
+	if ( result ~= 0 ) then
+		return result end
+
+	result = sign( a.PrimaryCooldown < b.PrimaryCooldown )
+	if ( result ~= 0 ) then
+		return result end
+
+	return sign( a.PrimarySpell.CounterDuration > b.PrimarySpell.CounterDuration )
+end
+
+function addon:SortPlayers( players )
+	table.sort( players, ComparePlayers )
+end
+
 function addon:CreateRotation( id )
 	local instance = {}
 	local _playerGUID = UnitGUID( "player" )
@@ -80,7 +103,7 @@ function addon:CreateRotation( id )
 		_players = {}
 		_nextPlayer = nil
 
-		for i, player in ipairs( players ) do
+		for i, player in next, players do
 			local bar = _gui:GetBar( i )
 			bar:SetLabel( player.Name )
 			bar:SetMinMaxValues( 0, 1 )
@@ -98,6 +121,17 @@ function addon:CreateRotation( id )
 		end
 
 		instance:AdvanceRotation()
+	end
+
+	function instance:SortPlayers()
+		local players = {}
+		for _, entry in next, _players do
+			table.insert( players, entry.Info )
+		end
+
+		addon:SortPlayers( players )
+
+		instance:SetPlayers( players )
 	end
 
 	function instance:StartLockout( duration )

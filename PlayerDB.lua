@@ -11,6 +11,8 @@ local ADDON_NAME, addon = ...
 function addon:CreatePlayerDB()
 	local instance = {}
 	local _players = {}
+	local _pending = {}
+	local _callbacks = {}
 
 	-- ----------------------------------------------------
 
@@ -46,6 +48,7 @@ function addon:CreatePlayerDB()
 			["Name"] = name,
 			["Class"] = classID,
 			["Spec"] = 0,
+			["Role"] = "NONE",
 			["Inspected"] = false,
 		}
 
@@ -57,11 +60,14 @@ function addon:CreatePlayerDB()
 	local function RequestInspect( info, reset )
 		if ( info.Inspected and ( not reset ) ) then
 			return end
+		if ( _pending[info.GUID] ) then
+			return end
 
 		addon:Log( "Requesting inspect for %q", info.GUID )
 
 		info.Inspected = false
 
+		_pending[info.GUID] = GetTime()
 		NotifyInspect( info.Name )
 	end
 
@@ -120,16 +126,31 @@ function addon:CreatePlayerDB()
 		if ( info.Inspected ) then
 			return end
 
+		if ( _pending[guid] ) then
+			addon:Log( "Inspection request took " .. ( GetTime() - _pending[guid] ) .. " seconds" )
+			_pending[guid] = nil
+		end
+
 		local specID = GetInspectSpecialization( info.Name )
-		addon:Log( "%q spec: %s", guid, specID )
+		local _, name, _, _, _, role, _ = GetSpecializationInfoByID( specID )
+		addon:Log( "%q spec: %s (ID %s, Role %s)", guid, name, specID, role )
 
 		info.Spec = specID
+		info.Role = role
 		SetPrimarySpellInfo( info )
 
 		if ( specID == 0 ) then
-			addon:Log( "WARN", "GetInspectSpecialization failed for %q:%q", guid, info.Name )
+			addon:Log( "GetInspectSpecialization failed for %q:%q", guid, info.Name )
 			return end
+
 		info.Inspected = true
+
+		if ( #_callbacks > 0 ) then
+			repeat
+				table.remove( _callbacks )()
+			until ( #_callbacks == 0 )
+		end
+
 		return true
 	end
 
@@ -143,6 +164,14 @@ function addon:CreatePlayerDB()
 
 	function instance:GetPlayerInfos()
 		return _players
+	end
+
+	function instance:RegisterCallback( f )
+		if ( next( _pending ) ) then
+			table.insert( _callbacks, f )
+		else
+			f()
+		end
 	end
 
 	instance:GetPlayerInfo( "player" )

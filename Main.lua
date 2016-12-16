@@ -34,14 +34,18 @@ local function OnSlashCmd( ... )
 
 	local arg1, arg2, arg3 = ...
 	if ( arg1 == '' ) then
+		addon:Print( "/ckick auto" )
 		addon:Print( "/ckick rotation <RotationID> players <UnitID 1> ..." )
 		addon:Print( "/ckick rotation <RotationID> target [<UnitID>]" )
 		addon:Print( "/ckick rotation <RotationID> restart" )
 		addon:Print( "/ckick rotation <RotationID> remove" )
 		addon:Print( "/ckick sync [<RotationID>]" )
 		addon:Print( "/ckick sync <RotationID> target" )
+		addon:Print( "/ckick reset" )
 		addon:Print( "/ckick log <enable|disable>" )
 		return
+	elseif ( arg1 == "auto" ) then
+		addon:AutoRotations( 1, 0 )
 	elseif ( arg1 == "rotation" ) then
 		if ( arg3 == "players" ) then
 			addon:SetPlayersByUnitID( arg2, select( 4, ... ) ) return
@@ -64,6 +68,8 @@ local function OnSlashCmd( ... )
 		else
 			addon:SyncRotations()
 		end
+	elseif ( arg1 == "reset" ) then
+
 	elseif ( arg1 == "log" ) then
 		if ( arg2 == "enable" ) then
 			addon.EnableLog = true return
@@ -125,7 +131,7 @@ function events:CHAT_MSG_ADDON( prefix, msg, channel, sender )
 	if ( prefix ~= ADDON_NAME ) then
 		return end
 
-	addon:Log( "AddonMessageReceived from " .. sender .. " via " .. channel )
+	addon:Log( "CHAT_MSG_ADDON from " .. sender .. " via " .. channel )
 	addon:Log( " -> " .. msg )
 
 	local args = { strsplit( ";", msg ) }
@@ -198,9 +204,9 @@ function events:UNIT_DIED( timestamp, event, hideCaster,
 						   destGUID, destName, destFlags, destRaidFlags,
 						   recapID, unconsciousOnDeath )
 	if ( unconsciousOnDeath ) then
-		addon:Log( "%q is unconscious", destGUID )
+		--addon:Log( "%q is unconscious", destGUID )
 	else
-		addon:Log( "%q died", destGUID )
+		--addon:Log( "%q died", destGUID )
 
 		for _, rotation in next, _rotations do
 			if ( rotation:GetTarget() == destGUID ) then
@@ -256,8 +262,6 @@ function addon:SetPlayersByUnitID( rotationID, ... )
 	if ( type( rotationID ) ~= "number" ) then
 		addon:Print( "Usage: rotation set players <RotationID> <UnitID 1> ..." ) return end
 
-	local rotation = GetRotation( rotationID, true )
-
 	local playerInfos = {}
 	for n = 1, select( '#', ... ) do
 		local unitID = select( n, ... )
@@ -274,17 +278,19 @@ function addon:SetPlayersByUnitID( rotationID, ... )
 		addon:Print( "Failed to create rotation: Must specify at least one unit ID", unitID )
 		addon:Print( "Usage: rotation set players <RotationID> <Player1> ..." ) return end
 
-	rotation:Reset()
-	rotation:SetPlayers( playerInfos )
-	rotation:GetGUI():Show()
+	for _, info in next, playerInfos do
+		_players:StartPlayerInfoUpdate( info.Name )
+	end
+
+	_players:RegisterCallback( function()
+		addon:FinishSetPlayers( rotationID, playerInfos )
+	end )
 end
 
 function addon:SetPlayersByGUID( rotationID, ... )
 	rotationID = tonumber( rotationID )
 	if ( type( rotationID ) ~= "number" ) then
 		addon:Log( "Failed to sync rotation: Invalid rotation ID: %q", rotationID ) return end
-
-	local rotation = GetRotation( rotationID, true )
 
 	local playerInfos = {}
 	for n = 1, select( '#', ... ) do
@@ -298,6 +304,21 @@ function addon:SetPlayersByGUID( rotationID, ... )
 		table.insert( playerInfos, info )
 	end
 
+	for _, info in next, playerInfos do
+		_players:StartPlayerInfoUpdate( info.Name )
+	end
+
+	_players:RegisterCallback( function()
+		addon:FinishSetPlayers( rotationID, playerInfos )
+	end )
+end
+
+function addon:FinishSetPlayers( rotationID, playerInfos )
+	addon:Log( "Finish set players" )
+
+	addon:SortPlayers( playerInfos )
+
+	local rotation = GetRotation( rotationID, true )
 	rotation:Reset()
 	rotation:SetPlayers( playerInfos )
 	rotation:GetGUI():Show()
@@ -325,6 +346,63 @@ function addon:RemoveRotation( rotationID )
 		return end
 
 	rotation:Reset()
+end
+
+function addon:AutoRotations( nRotations, maxPlayers )
+	addon:ResetRotations()
+
+	addon:Log( "Setting up %s auto rotations", nRotations )
+
+	local nPlayers = GetNumGroupMembers()
+	local playerInfos = {}
+
+	if ( nPlayers > 0 ) then
+		local unitPrefix = ( IsInRaid() and "raid" ) or ( IsInGroup() and "party" ) or error()
+		for i = 1, nPlayers do
+			table.insert( playerInfos, _players:GetPlayerInfo( unitPrefix .. i ) )
+		end
+	else
+		table.insert( playerInfos, _players:GetPlayerInfo( "player" ) )
+	end
+
+	for _, info in next, playerInfos do
+		_players:StartPlayerInfoUpdate( info.Name )
+	end
+
+	_players:RegisterCallback( function()
+		addon:FinishAutoRotations( nRotations, playerInfos, maxPlayers )
+	end )
+end
+
+function addon:FinishAutoRotations( nRotations, playerInfos, maxPlayers )
+	addon:Log( "Finish auto rotation" )
+
+	local valid = {}
+	for _, info in next, playerInfos do
+		if ( info.PrimarySpell ) then
+			addon:Log( "Adding player %q to auto rotations", info.Name )
+			table.insert( valid, info )
+		end
+	end
+
+	if ( #valid == 0 ) then
+		addon:Print( "No valid players found for auto rotation!" )
+		return end
+
+	addon:SortPlayers( playerInfos )
+
+	local rotation = GetRotation( 1, true )
+	rotation:Reset()
+	rotation:SetPlayers( playerInfos )
+	rotation:GetGUI():Show()
+end
+
+function addon:ResetRotations()
+	addon:Log( "Clearing rotations" )
+
+	for _, rotation in next, _rotations do
+		rotation:Reset()
+	end
 end
 
 -- ----------------------------------------------------
