@@ -16,22 +16,25 @@ local ROLE_KICKER_ORDER = {
 }
 
 local function ComparePlayers( a, b )
-	if ( not a or not b ) then return end
+	addon:Log( "Comparing %q and %q", ( a and a.Name ) or "nil", ( b and b.Name ) or "nil" )
 
-	addon:Log( "Comparing %q and %q", a.Name, b.Name )
+	if ( not a ) then return false
+	elseif ( not b ) then return true end
 
-	local result = ROLE_KICKER_ORDER[a.Role] < ROLE_KICKER_ORDER[b.Role]
+	local result = ROLE_KICKER_ORDER[a.Role] - ROLE_KICKER_ORDER[b.Role]
 	addon:Log( "  Role: %s vs %s: %s", a.Role, b.Role, result )
 	if ( result ~= 0 ) then
-		return result end
+		return ( result < 0 ) end
 
-	result = a.PrimaryCooldown < b.PrimaryCooldown
+	result = a.PrimaryCooldown - b.PrimaryCooldown
 	addon:Log( "  CD: %s vs %s: %s", a.PrimaryCooldown, b.PrimaryCooldown, result )
 	if ( result ~= 0 ) then
-		return result end
+		return ( result < 0 ) end
 
-	result = a.PrimarySpell.CounterDuration > b.PrimarySpell.CounterDuration
+	result = b.PrimarySpell.CounterDuration - a.PrimarySpell.CounterDuration
 	addon:Log( "  Duration: %s vs %s: %s", a.PrimarySpell.CounterDuration, b.PrimarySpell.CounterDuration, result )
+
+	return ( result < 0 )
 end
 
 function addon:SortPlayers( players )
