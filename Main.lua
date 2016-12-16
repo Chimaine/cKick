@@ -125,6 +125,8 @@ function events:INSPECT_READY( guid )
 			rotation:AdvanceRotation()
 		end
 	end
+
+	_players:RequestNextPending()
 end
 
 function events:CHAT_MSG_ADDON( prefix, msg, channel, sender )
@@ -356,13 +358,24 @@ function addon:AutoRotations( nRotations, maxPlayers )
 	local nPlayers = GetNumGroupMembers()
 	local playerInfos = {}
 
+	table.insert( playerInfos, _players:GetPlayerInfo( "player" ) )
+
 	if ( nPlayers > 0 ) then
-		local unitPrefix = ( IsInRaid() and "raid" ) or ( IsInGroup() and "party" ) or error()
-		for i = 1, nPlayers do
-			table.insert( playerInfos, _players:GetPlayerInfo( unitPrefix .. i ) )
+		if ( IsInRaid() ) then
+			for i = 1, 40 do
+				local info = _players:GetPlayerInfo( "raid" .. i )
+				if ( info ) then
+					table.insert( playerInfos, info )
+				end
+			end
+		elseif ( IsInGroup() ) then
+			for i = 1, 5 do
+				local info = _players:GetPlayerInfo( "party" .. i )
+				if ( info ) then
+					table.insert( playerInfos, info )
+				end
+			end
 		end
-	else
-		table.insert( playerInfos, _players:GetPlayerInfo( "player" ) )
 	end
 
 	for _, info in next, playerInfos do
@@ -382,6 +395,8 @@ function addon:FinishAutoRotations( nRotations, playerInfos, maxPlayers )
 		if ( info.PrimarySpell ) then
 			addon:Log( "Adding player %q to auto rotations", info.Name )
 			table.insert( valid, info )
+		else
+			addon:Log( "%q has no primary spell", info.Name )
 		end
 	end
 
@@ -389,11 +404,11 @@ function addon:FinishAutoRotations( nRotations, playerInfos, maxPlayers )
 		addon:Print( "No valid players found for auto rotation!" )
 		return end
 
-	addon:SortPlayers( playerInfos )
+	addon:SortPlayers( valid )
 
 	local rotation = GetRotation( 1, true )
 	rotation:Reset()
-	rotation:SetPlayers( playerInfos )
+	rotation:SetPlayers( valid )
 	rotation:GetGUI():Show()
 end
 

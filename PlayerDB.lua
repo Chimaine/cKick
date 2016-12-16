@@ -11,6 +11,7 @@ local ADDON_NAME, addon = ...
 function addon:CreatePlayerDB()
 	local instance = {}
 	local _players = {}
+	local _nPending = 0
 	local _pending = {}
 	local _callbacks = {}
 
@@ -67,7 +68,22 @@ function addon:CreatePlayerDB()
 
 		info.Inspected = false
 
+		local doRequest = _nPending == 0
+		_nPending = _nPending + 1
 		_pending[info.GUID] = GetTime()
+
+		if ( doRequest ) then
+			NotifyInspect( info.Name )
+		end
+	end
+
+	function instance:RequestNextPending()
+		if ( _nPending <= 0 ) then
+			addon:Log( "No more pending requests" )
+			return end
+
+		local guid, v = next( _pending )
+		local info = _players[guid]
 		NotifyInspect( info.Name )
 	end
 
@@ -126,10 +142,9 @@ function addon:CreatePlayerDB()
 		if ( info.Inspected ) then
 			return end
 
-		if ( _pending[guid] ) then
-			addon:Log( "Inspection request took " .. ( GetTime() - _pending[guid] ) .. " seconds" )
-			_pending[guid] = nil
-		end
+		addon:Log( "Inspection request took " .. ( GetTime() - _pending[guid] ) .. " seconds" )
+		_pending[guid] = nil
+		_nPending = _nPending - 1
 
 		local specID = GetInspectSpecialization( info.Name )
 		local _, name, _, _, _, role, _ = GetSpecializationInfoByID( specID )
@@ -145,10 +160,12 @@ function addon:CreatePlayerDB()
 
 		info.Inspected = true
 
-		if ( #_callbacks > 0 ) then
-			repeat
-				table.remove( _callbacks )()
-			until ( #_callbacks == 0 )
+		if ( _nPending == 0 ) then
+			if ( #_callbacks > 0 ) then
+				repeat
+					table.remove( _callbacks )()
+				until ( #_callbacks == 0 )
+			end
 		end
 
 		return true
